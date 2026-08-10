@@ -12,7 +12,7 @@ export default async function DashboardPage() {
     redirect('/login');
   }
 
-  const { data: profile, error: profileError } = await supabase
+  const { data: profile } = await supabase
     .from('users')
     .select('name, role, branch_id')
     .eq('id', user.id)
@@ -39,16 +39,9 @@ export default async function DashboardPage() {
             </p>
           </div>
         ) : (
-          <div className="text-red-600 flex flex-col gap-2">
-            <p>تسجيل الدخول نجح، لكن ما فيه ملف شخصي مرتبط بهذا الحساب بجدول users.</p>
-            <p className="text-sm bg-red-50 border border-red-200 rounded-lg p-3 font-mono break-words">
-              معرّف المستخدم الحالي (auth.uid): {user.id}
-              <br />
-              رسالة الخطأ الفعلية: {profileError?.message || 'لا يوجد خطأ، بس ما رجع صف'}
-              <br />
-              كود الخطأ: {profileError?.code || 'لا يوجد'}
-            </p>
-          </div>
+          <p className="text-red-600">
+            تسجيل الدخول نجح، لكن ما فيه ملف شخصي مرتبط بهذا الحساب بجدول users.
+          </p>
         )}
 
         <form action="/api/logout" method="post" className="mt-8">
