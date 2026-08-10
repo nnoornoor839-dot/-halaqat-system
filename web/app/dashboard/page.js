@@ -77,6 +77,12 @@ export default async function DashboardPage() {
             نظرة عامة ←
           </a>
           <a
+            href="/tickets"
+            className="inline-block bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-lg px-5 py-2.5 transition"
+          >
+            تذاكر الترفيه ←
+          </a>
+          <a
             href="/screen"
             className="inline-block bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-lg px-5 py-2.5 transition"
           >
