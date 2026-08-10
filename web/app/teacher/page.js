@@ -9,14 +9,19 @@ async function markAttendance(formData) {
   const today = new Date().toISOString().slice(0, 10);
 
   const supabase = await createClient();
-  await supabase
+  const { error } = await supabase
     .from('attendance')
     .upsert({ student_id: studentId, date: today, attended }, { onConflict: 'student_id,date' });
 
   revalidatePath('/teacher');
+
+  if (error) {
+    redirect(`/teacher?error=${encodeURIComponent(error.message)}&code=${encodeURIComponent(error.code || '')}`);
+  }
 }
 
-export default async function TeacherPage() {
+export default async function TeacherPage({ searchParams }) {
+  const params = await searchParams;
   const supabase = await createClient();
 
   const {
@@ -42,6 +47,14 @@ export default async function TeacherPage() {
       <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-md border border-slate-200 p-8">
         <h1 className="text-2xl font-bold text-slate-800 mb-1">تحضير اليوم</h1>
         <p className="text-slate-500 mb-6">{today}</p>
+
+        {params?.error && (
+          <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg p-3 mb-4 font-mono break-words">
+            رسالة الخطأ: {params.error}
+            <br />
+            كود الخطأ: {params.code || 'لا يوجد'}
+          </p>
+        )}
 
         <div className="flex flex-col gap-3">
           {students?.map((s) => {
