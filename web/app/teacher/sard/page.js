@@ -1,6 +1,9 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { SURAHS } from '@/lib/quran-surahs';
+import { computeProgress } from '@/lib/quran-coverage';
+
+const MILESTONES = [25, 50, 75, 100];
 
 async function recordSard(formData) {
   'use server';
@@ -28,7 +31,39 @@ async function recordSard(formData) {
     redirect(`/teacher/sard?studentId=${studentId}&error=1`);
   }
 
-  redirect('/teacher');
+  // بعد الحفظ: نتحقق هل الطالب عبر محطة جديدة (25/50/75/100%) لأول مرة
+  let newMilestone = null;
+  const { data: level } = await supabase
+    .from('student_levels')
+    .select('target_start_surah, target_start_ayah, target_end_surah, target_end_ayah')
+    .eq('student_id', studentId)
+    .maybeSingle();
+
+  if (level) {
+    const { data: allRecords } = await supabase
+      .from('daily_records')
+      .select('start_surah, start_ayah, end_surah, end_ayah')
+      .eq('student_id', studentId);
+
+    const progress = computeProgress(level, allRecords ?? []);
+
+    const { data: existingMilestones } = await supabase
+      .from('milestone_log')
+      .select('milestone_percent')
+      .eq('student_id', studentId);
+
+    const already = new Set((existingMilestones ?? []).map((m) => m.milestone_percent));
+    const reached = MILESTONES.filter((m) => progress.percent >= m && !already.has(m));
+
+    if (reached.length > 0) {
+      newMilestone = Math.max(...reached);
+      await supabase
+        .from('milestone_log')
+        .insert(reached.map((m) => ({ student_id: studentId, milestone_percent: m })));
+    }
+  }
+
+  redirect(newMilestone ? `/teacher?milestone=${newMilestone}` : '/teacher');
 }
 
 export default async function SardPage({ searchParams }) {

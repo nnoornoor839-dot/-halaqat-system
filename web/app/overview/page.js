@@ -38,12 +38,22 @@ export default async function OverviewPage() {
     .select('student_id, start_surah, start_ayah, end_surah, end_ayah')
     .in('student_id', studentIds.length ? studentIds : [-1]);
 
+  const { data: milestones } = await supabase
+    .from('milestone_log')
+    .select('student_id, milestone_percent')
+    .in('student_id', studentIds.length ? studentIds : [-1]);
+
   const attendanceMap = new Map((todayAttendance ?? []).map((a) => [a.student_id, a]));
   const levelMap = new Map((levels ?? []).map((l) => [l.student_id, l]));
   const recordsMap = new Map();
   for (const r of allRecords ?? []) {
     if (!recordsMap.has(r.student_id)) recordsMap.set(r.student_id, []);
     recordsMap.get(r.student_id).push(r);
+  }
+  const milestonesMap = new Map();
+  for (const m of milestones ?? []) {
+    if (!milestonesMap.has(m.student_id)) milestonesMap.set(m.student_id, []);
+    milestonesMap.get(m.student_id).push(m.milestone_percent);
   }
 
   function attendanceLabel(status) {
@@ -67,6 +77,7 @@ export default async function OverviewPage() {
                 <th className="py-2 px-2">الحلقة</th>
                 <th className="py-2 px-2">حضور اليوم</th>
                 <th className="py-2 px-2">التقدم</th>
+                <th className="py-2 px-2">المحطات</th>
               </tr>
             </thead>
             <tbody>
@@ -75,6 +86,7 @@ export default async function OverviewPage() {
                 const att = attendanceLabel(status);
                 const level = levelMap.get(s.id);
                 const progress = level ? computeProgress(level, recordsMap.get(s.id) ?? []) : null;
+                const achieved = (milestonesMap.get(s.id) ?? []).sort((a, b) => a - b);
 
                 return (
                   <tr key={s.id} className="border-b border-slate-100">
@@ -98,13 +110,20 @@ export default async function OverviewPage() {
                         <span className="text-slate-400 text-sm">بلا هدف محدد</span>
                       )}
                     </td>
+                    <td className="py-3 px-2">
+                      {achieved.map((m) => (
+                        <span key={m} title={`${m}%`}>
+                          {m === 100 ? '🏆' : '🏅'}
+                        </span>
+                      ))}
+                    </td>
                   </tr>
                 );
               })}
 
               {(!students || students.length === 0) && (
                 <tr>
-                  <td colSpan={4} className="py-6 text-center text-slate-400">
+                  <td colSpan={5} className="py-6 text-center text-slate-400">
                     ما فيه طلاب مرتبطين بحسابك.
                   </td>
                 </tr>

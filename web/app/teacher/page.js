@@ -64,6 +64,16 @@ export default async function TeacherPage({ searchParams }) {
     recordsMap.get(r.student_id).push(r);
   }
 
+  const { data: milestones } = await supabase
+    .from('milestone_log')
+    .select('student_id, milestone_percent')
+    .in('student_id', studentIds.length ? studentIds : [-1]);
+  const milestonesMap = new Map();
+  for (const m of milestones ?? []) {
+    if (!milestonesMap.has(m.student_id)) milestonesMap.set(m.student_id, []);
+    milestonesMap.get(m.student_id).push(m.milestone_percent);
+  }
+
   return (
     <div dir="rtl" className="min-h-screen bg-slate-50 p-8">
       <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-md border border-slate-200 p-8">
@@ -76,6 +86,19 @@ export default async function TeacherPage({ searchParams }) {
           </p>
         )}
 
+        {params?.milestone && (
+          <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-4 mb-4 text-center">
+            <p className="text-2xl mb-1">
+              {params.milestone === '100' ? '🏆' : '🎉'}
+            </p>
+            <p className="font-bold text-amber-800">
+              {params.milestone === '100'
+                ? 'مبروك! طالب أنهى هدفه بالكامل — جاهز للاختبار'
+                : `مبروك! طالب بلغ ${params.milestone}% من هدفه`}
+            </p>
+          </div>
+        )}
+
         <div className="flex flex-col gap-3">
           {students?.map((s) => {
             const status = attendanceMap.get(s.id);
@@ -84,6 +107,7 @@ export default async function TeacherPage({ searchParams }) {
             const isEarly = status?.attended === true && status?.early_arrival === true;
             const level = levelMap.get(s.id);
             const progress = level ? computeProgress(level, recordsMap.get(s.id) ?? []) : null;
+            const achieved = (milestonesMap.get(s.id) ?? []).sort((a, b) => a - b);
             return (
               <div
                 key={s.id}
@@ -103,6 +127,15 @@ export default async function TeacherPage({ searchParams }) {
                           style={{ width: `${progress.percent}%` }}
                         />
                       </div>
+                    </div>
+                  )}
+                  {achieved.length > 0 && (
+                    <div className="flex gap-1 mt-1">
+                      {achieved.map((m) => (
+                        <span key={m} title={`${m}%`}>
+                          {m === 100 ? '🏆' : '🏅'}
+                        </span>
+                      ))}
                     </div>
                   )}
                 </div>
