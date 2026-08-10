@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { computeProgress } from '@/lib/quran-coverage';
 
 async function markAttendance(formData) {
   'use server';
@@ -46,6 +47,23 @@ export default async function TeacherPage({ searchParams }) {
     (todayAttendance ?? []).map((a) => [a.student_id, a])
   );
 
+  const studentIds = (students ?? []).map((s) => s.id);
+  const { data: levels } = await supabase
+    .from('student_levels')
+    .select('student_id, target_start_surah, target_start_ayah, target_end_surah, target_end_ayah')
+    .in('student_id', studentIds.length ? studentIds : [-1]);
+  const { data: allRecords } = await supabase
+    .from('daily_records')
+    .select('student_id, start_surah, start_ayah, end_surah, end_ayah')
+    .in('student_id', studentIds.length ? studentIds : [-1]);
+
+  const levelMap = new Map((levels ?? []).map((l) => [l.student_id, l]));
+  const recordsMap = new Map();
+  for (const r of allRecords ?? []) {
+    if (!recordsMap.has(r.student_id)) recordsMap.set(r.student_id, []);
+    recordsMap.get(r.student_id).push(r);
+  }
+
   return (
     <div dir="rtl" className="min-h-screen bg-slate-50 p-8">
       <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-md border border-slate-200 p-8">
@@ -64,12 +82,30 @@ export default async function TeacherPage({ searchParams }) {
             const isAbsent = status?.attended === false;
             const isPresent = status?.attended === true && !status?.early_arrival;
             const isEarly = status?.attended === true && status?.early_arrival === true;
+            const level = levelMap.get(s.id);
+            const progress = level ? computeProgress(level, recordsMap.get(s.id) ?? []) : null;
             return (
               <div
                 key={s.id}
                 className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border border-slate-200 rounded-xl p-3"
               >
-                <span className="font-bold text-slate-700">{s.name}</span>
+                <div>
+                  <span className="font-bold text-slate-700">{s.name}</span>
+                  {progress && (
+                    <div className="mt-1 w-40">
+                      <div className="flex justify-between text-xs text-slate-500 mb-0.5">
+                        <span>التقدم</span>
+                        <span>{progress.percent}%</span>
+                      </div>
+                      <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-emerald-500"
+                          style={{ width: `${progress.percent}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
                 <div className="flex flex-wrap gap-2">
                   <form action={markAttendance}>
                     <input type="hidden" name="studentId" value={s.id} />
