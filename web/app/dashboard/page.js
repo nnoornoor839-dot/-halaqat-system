@@ -76,6 +76,12 @@ export default async function DashboardPage() {
           >
             نظرة عامة ←
           </a>
+          <a
+            href="/screen"
+            className="inline-block bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-lg px-5 py-2.5 transition"
+          >
+            شاشة العرض الدوارة ←
+          </a>
         </div>
 
         <form action="/api/logout" method="post" className="mt-4">
