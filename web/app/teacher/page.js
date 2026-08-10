@@ -16,7 +16,7 @@ async function markAttendance(formData) {
   revalidatePath('/teacher');
 
   if (error) {
-    redirect(`/teacher?error=${encodeURIComponent(error.message)}&code=${encodeURIComponent(error.code || '')}`);
+    redirect('/teacher?error=1');
   }
 }
 
@@ -49,10 +49,8 @@ export default async function TeacherPage({ searchParams }) {
         <p className="text-slate-500 mb-6">{today}</p>
 
         {params?.error && (
-          <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg p-3 mb-4 font-mono break-words">
-            رسالة الخطأ: {params.error}
-            <br />
-            كود الخطأ: {params.code || 'لا يوجد'}
+          <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+            صار خطأ أثناء الحفظ، حاول مرة ثانية.
           </p>
         )}
 
