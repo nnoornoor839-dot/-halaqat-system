@@ -60,10 +60,10 @@ export default async function TeacherPage({ searchParams }) {
             return (
               <div
                 key={s.id}
-                className="flex items-center justify-between border border-slate-200 rounded-xl p-3"
+                className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border border-slate-200 rounded-xl p-3"
               >
                 <span className="font-bold text-slate-700">{s.name}</span>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <form action={markAttendance}>
                     <input type="hidden" name="studentId" value={s.id} />
                     <input type="hidden" name="attended" value="true" />
@@ -90,6 +90,12 @@ export default async function TeacherPage({ searchParams }) {
                       غائب
                     </button>
                   </form>
+                  <a
+                    href={`/teacher/sard?studentId=${s.id}`}
+                    className="px-4 py-1.5 rounded-lg font-bold text-sm bg-blue-50 text-blue-700 hover:bg-blue-100 transition"
+                  >
+                    تسجيل سرد
+                  </a>
                 </div>
               </div>
             );
