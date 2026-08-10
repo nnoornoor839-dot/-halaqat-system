@@ -6,12 +6,14 @@ async function markAttendance(formData) {
   'use server';
   const studentId = formData.get('studentId');
   const attended = formData.get('attended') === 'true';
+  const early = formData.get('early') === 'true';
   const today = new Date().toISOString().slice(0, 10);
 
   const supabase = await createClient();
-  const { error } = await supabase
-    .from('attendance')
-    .upsert({ student_id: studentId, date: today, attended }, { onConflict: 'student_id,date' });
+  const { error } = await supabase.from('attendance').upsert(
+    { student_id: studentId, date: today, attended, early_arrival: early },
+    { onConflict: 'student_id,date' }
+  );
 
   revalidatePath('/teacher');
 
@@ -37,10 +39,12 @@ export default async function TeacherPage({ searchParams }) {
   const { data: students } = await supabase.from('students').select('id, name').order('name');
   const { data: todayAttendance } = await supabase
     .from('attendance')
-    .select('student_id, attended')
+    .select('student_id, attended, early_arrival')
     .eq('date', today);
 
-  const attendanceMap = new Map((todayAttendance ?? []).map((a) => [a.student_id, a.attended]));
+  const attendanceMap = new Map(
+    (todayAttendance ?? []).map((a) => [a.student_id, a])
+  );
 
   return (
     <div dir="rtl" className="min-h-screen bg-slate-50 p-8">
@@ -57,6 +61,9 @@ export default async function TeacherPage({ searchParams }) {
         <div className="flex flex-col gap-3">
           {students?.map((s) => {
             const status = attendanceMap.get(s.id);
+            const isAbsent = status?.attended === false;
+            const isPresent = status?.attended === true && !status?.early_arrival;
+            const isEarly = status?.attended === true && status?.early_arrival === true;
             return (
               <div
                 key={s.id}
@@ -67,9 +74,24 @@ export default async function TeacherPage({ searchParams }) {
                   <form action={markAttendance}>
                     <input type="hidden" name="studentId" value={s.id} />
                     <input type="hidden" name="attended" value="true" />
+                    <input type="hidden" name="early" value="true" />
                     <button
                       className={`px-4 py-1.5 rounded-lg font-bold text-sm transition ${
-                        status === true
+                        isEarly
+                          ? 'bg-amber-500 text-white'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      حاضر مبكراً
+                    </button>
+                  </form>
+                  <form action={markAttendance}>
+                    <input type="hidden" name="studentId" value={s.id} />
+                    <input type="hidden" name="attended" value="true" />
+                    <input type="hidden" name="early" value="false" />
+                    <button
+                      className={`px-4 py-1.5 rounded-lg font-bold text-sm transition ${
+                        isPresent
                           ? 'bg-emerald-600 text-white'
                           : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                       }`}
@@ -80,9 +102,10 @@ export default async function TeacherPage({ searchParams }) {
                   <form action={markAttendance}>
                     <input type="hidden" name="studentId" value={s.id} />
                     <input type="hidden" name="attended" value="false" />
+                    <input type="hidden" name="early" value="false" />
                     <button
                       className={`px-4 py-1.5 rounded-lg font-bold text-sm transition ${
-                        status === false
+                        isAbsent
                           ? 'bg-red-600 text-white'
                           : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                       }`}
