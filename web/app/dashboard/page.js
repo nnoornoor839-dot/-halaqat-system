@@ -63,7 +63,14 @@ export default async function DashboardPage() {
           </p>
         )}
 
-        <form action="/api/logout" method="post" className="mt-8">
+        <a
+          href="/teacher"
+          className="inline-block mt-8 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg px-5 py-2.5 transition"
+        >
+          تحضير اليوم ←
+        </a>
+
+        <form action="/api/logout" method="post" className="mt-4">
           <LogoutButton />
         </form>
       </div>
