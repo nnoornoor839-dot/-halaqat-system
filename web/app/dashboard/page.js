@@ -63,12 +63,20 @@ export default async function DashboardPage() {
           </p>
         )}
 
-        <a
-          href="/teacher"
-          className="inline-block mt-8 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg px-5 py-2.5 transition"
-        >
-          تحضير اليوم ←
-        </a>
+        <div className="flex flex-wrap gap-3 mt-8">
+          <a
+            href="/teacher"
+            className="inline-block bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg px-5 py-2.5 transition"
+          >
+            تحضير اليوم ←
+          </a>
+          <a
+            href="/overview"
+            className="inline-block bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg px-5 py-2.5 transition"
+          >
+            نظرة عامة ←
+          </a>
+        </div>
 
         <form action="/api/logout" method="post" className="mt-4">
           <LogoutButton />
