@@ -97,6 +97,12 @@ export default async function DashboardPage() {
           >
             حاسبة الميزانية ←
           </a>
+          <a
+            href="/executive"
+            className="inline-block bg-purple-700 hover:bg-purple-800 text-white font-bold rounded-lg px-5 py-2.5 transition"
+          >
+            لوحة القيادة ←
+          </a>
         </div>
 
         <form action="/api/logout" method="post" className="mt-4">
