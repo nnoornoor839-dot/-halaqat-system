@@ -88,6 +88,12 @@ export default async function DashboardPage() {
           >
             شاشة العرض الدوارة ←
           </a>
+          <a
+            href="/messages"
+            className="inline-block bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg px-5 py-2.5 transition"
+          >
+            رسائل اليوم ←
+          </a>
         </div>
 
         <form action="/api/logout" method="post" className="mt-4">
