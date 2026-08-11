@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { computeProgress } from '@/lib/quran-coverage';
+import { computeProgress } from '@/lib/quran-progress';
+import { buildQuranIndex } from '@/lib/quran-index';
 import ScreenRotator from './ScreenRotator';
 
 export default async function ScreenPage() {
@@ -40,6 +41,8 @@ export default async function ScreenPage() {
     recordsMap.get(r.student_id).push(r);
   }
 
+  const quranIndex = buildQuranIndex();
+
   const halaqat = (halaqatRows ?? []).map((h) => ({
     id: h.id,
     name: h.name,
@@ -47,7 +50,7 @@ export default async function ScreenPage() {
       .filter((s) => s.halaqah_id === h.id)
       .map((s) => {
         const level = levelMap.get(s.id);
-        const progress = level ? computeProgress(level, recordsMap.get(s.id) ?? []).percent : null;
+        const progress = level ? computeProgress(quranIndex, level, recordsMap.get(s.id) ?? []).percent : null;
         return { id: s.id, name: s.name, progress };
       }),
   }));

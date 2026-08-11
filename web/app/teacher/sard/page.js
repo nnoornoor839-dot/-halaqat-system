@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { SURAHS } from '@/lib/quran-surahs';
-import { computeProgress } from '@/lib/quran-coverage';
+import { computeProgress } from '@/lib/quran-progress';
+import { buildQuranIndex } from '@/lib/quran-index';
 
 const MILESTONES = [25, 50, 75, 100];
 
@@ -47,7 +48,8 @@ async function recordSard(formData) {
   ]);
 
   if (level) {
-    const progress = computeProgress(level, allRecords ?? []);
+    const quranIndex = buildQuranIndex();
+    const progress = computeProgress(quranIndex, level, allRecords ?? []);
     const already = new Set((existingMilestones ?? []).map((m) => m.milestone_percent));
     const reached = MILESTONES.filter((m) => progress.percent >= m && !already.has(m));
 

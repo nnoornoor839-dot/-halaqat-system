@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { computeProgress } from '@/lib/quran-coverage';
+import { computeProgress } from '@/lib/quran-progress';
+import { buildQuranIndex } from '@/lib/quran-index';
 
 async function markAttendance(formData) {
   'use server';
@@ -74,6 +75,8 @@ export default async function TeacherPage({ searchParams }) {
     milestonesMap.get(m.student_id).push(m.milestone_percent);
   }
 
+  const quranIndex = buildQuranIndex();
+
   return (
     <div dir="rtl" className="min-h-screen bg-slate-50 p-8">
       <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-md border border-slate-200 p-8">
@@ -106,7 +109,7 @@ export default async function TeacherPage({ searchParams }) {
             const isPresent = status?.attended === true && !status?.early_arrival;
             const isEarly = status?.attended === true && status?.early_arrival === true;
             const level = levelMap.get(s.id);
-            const progress = level ? computeProgress(level, recordsMap.get(s.id) ?? []) : null;
+            const progress = level ? computeProgress(quranIndex, level, recordsMap.get(s.id) ?? []) : null;
             const achieved = (milestonesMap.get(s.id) ?? []).sort((a, b) => a - b);
             return (
               <div

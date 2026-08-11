@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { computeProgress } from '@/lib/quran-coverage';
+import { computeProgress } from '@/lib/quran-progress';
+import { buildQuranIndex } from '@/lib/quran-index';
 
 export default async function OverviewPage() {
   const supabase = await createClient();
@@ -58,6 +59,8 @@ export default async function OverviewPage() {
     milestonesMap.get(m.student_id).push(m.milestone_percent);
   }
 
+  const quranIndex = buildQuranIndex();
+
   function attendanceLabel(status) {
     if (!status) return { text: 'لم يُسجَّل بعد', color: 'text-slate-400' };
     if (status.attended && status.early_arrival) return { text: 'حاضر مبكراً', color: 'text-amber-600' };
@@ -87,7 +90,7 @@ export default async function OverviewPage() {
                 const status = attendanceMap.get(s.id);
                 const att = attendanceLabel(status);
                 const level = levelMap.get(s.id);
-                const progress = level ? computeProgress(level, recordsMap.get(s.id) ?? []) : null;
+                const progress = level ? computeProgress(quranIndex, level, recordsMap.get(s.id) ?? []) : null;
                 const achieved = (milestonesMap.get(s.id) ?? []).sort((a, b) => a - b);
 
                 return (

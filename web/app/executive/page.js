@@ -1,17 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { SURAHS } from '@/lib/quran-surahs';
-import { QUARTERS, PAGES } from '@/lib/quran-boundaries';
 import QuranEngine from '@/lib/quranEngine';
-
-// يبني فهرس المحرك القرآني المعتمد (نفس quranEngine.js من مشروع المهرة، بدون أي تعديل)
-function buildIndex() {
-  return QuranEngine.buildQuranIndex({
-    surahs: { references: SURAHS.map((s) => ({ number: s.number, numberOfAyahs: s.ayahCount })) },
-    hizbQuarters: { references: QUARTERS },
-    pages: { references: PAGES },
-  });
-}
+import { buildQuranIndex } from '@/lib/quran-index';
 
 // عدّ الصفحات "المكتملة فعلياً" (كل آية في الصفحة مسجّلة عند الطالب) — بنفس فلسفة
 // اكتمال الأرباع في quranEngine.js (0/1 لكل صفحة، بلا نسب)، لكن كدالة مساعدة هنا
@@ -57,7 +47,7 @@ export default async function ExecutivePage() {
     supabase.from('financial_requests').select('total_amount'),
   ]);
 
-  const index = buildIndex();
+  const index = buildQuranIndex();
 
   // نبني حالة تغطية لكل طالب (كل السجلات، بغض النظر عن النوع جديد/مراجعة — الهدف
   // "هل لمس الطالب هذه الآية فعلياً؟")، ثم نجمع النتائج عبر كل الطلاب
