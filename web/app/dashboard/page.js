@@ -12,14 +12,11 @@ export default async function DashboardPage() {
     redirect('/login');
   }
 
-  const { data: profile } = await supabase
-    .from('users')
-    .select('name, role, branch_id')
-    .eq('id', user.id)
-    .single();
-
-  const { data: halaqat } = await supabase.from('halaqat').select('name');
-  const { data: students } = await supabase.from('students').select('name');
+  const [{ data: profile }, { data: halaqat }, { data: students }] = await Promise.all([
+    supabase.from('users').select('name, role, branch_id').eq('id', user.id).single(),
+    supabase.from('halaqat').select('name'),
+    supabase.from('students').select('name'),
+  ]);
 
   return (
     <div dir="rtl" className="min-h-screen bg-slate-50 p-8">

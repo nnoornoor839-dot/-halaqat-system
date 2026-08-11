@@ -14,23 +14,24 @@ export default async function ScreenPage() {
     redirect('/login');
   }
 
-  const { data: halaqatRows } = await supabase.from('halaqat').select('id, name').order('name');
-  const { data: students } = await supabase
-    .from('students')
-    .select('id, name, halaqah_id')
-    .order('name');
+  const [{ data: halaqatRows }, { data: students }] = await Promise.all([
+    supabase.from('halaqat').select('id, name').order('name'),
+    supabase.from('students').select('id, name, halaqah_id').order('name'),
+  ]);
 
   const studentIds = (students ?? []).map((s) => s.id);
+  const idsFilter = studentIds.length ? studentIds : [-1];
 
-  const { data: levels } = await supabase
-    .from('student_levels')
-    .select('student_id, target_start_surah, target_start_ayah, target_end_surah, target_end_ayah')
-    .in('student_id', studentIds.length ? studentIds : [-1]);
-
-  const { data: allRecords } = await supabase
-    .from('daily_records')
-    .select('student_id, start_surah, start_ayah, end_surah, end_ayah')
-    .in('student_id', studentIds.length ? studentIds : [-1]);
+  const [{ data: levels }, { data: allRecords }] = await Promise.all([
+    supabase
+      .from('student_levels')
+      .select('student_id, target_start_surah, target_start_ayah, target_end_surah, target_end_ayah')
+      .in('student_id', idsFilter),
+    supabase
+      .from('daily_records')
+      .select('student_id, start_surah, start_ayah, end_surah, end_ayah')
+      .in('student_id', idsFilter),
+  ]);
 
   const levelMap = new Map((levels ?? []).map((l) => [l.student_id, l]));
   const recordsMap = new Map();

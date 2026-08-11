@@ -57,25 +57,21 @@ export default async function TicketsPage() {
   const weekDates = getWorkWeekDates();
   const weekStart = weekDates[0];
 
-  const { data: students } = await supabase.from('students').select('id, name').order('name');
+  const [{ data: students }, { data: issuedRows }] = await Promise.all([
+    supabase.from('students').select('id, name').order('name'),
+    supabase.from('weekly_tickets').select('student_id').eq('week_start', weekStart),
+  ]);
   const studentIds = (students ?? []).map((s) => s.id);
+  const idsFilter = studentIds.length ? studentIds : [-1];
 
-  const { data: attendanceRows } = await supabase
-    .from('attendance')
-    .select('student_id, date, attended, early_arrival')
-    .in('student_id', studentIds.length ? studentIds : [-1])
-    .in('date', weekDates);
-
-  const { data: recordRows } = await supabase
-    .from('daily_records')
-    .select('student_id, date')
-    .in('student_id', studentIds.length ? studentIds : [-1])
-    .in('date', weekDates);
-
-  const { data: issuedRows } = await supabase
-    .from('weekly_tickets')
-    .select('student_id')
-    .eq('week_start', weekStart);
+  const [{ data: attendanceRows }, { data: recordRows }] = await Promise.all([
+    supabase
+      .from('attendance')
+      .select('student_id, date, attended, early_arrival')
+      .in('student_id', idsFilter)
+      .in('date', weekDates),
+    supabase.from('daily_records').select('student_id, date').in('student_id', idsFilter).in('date', weekDates),
+  ]);
 
   const issuedSet = new Set((issuedRows ?? []).map((r) => r.student_id));
 

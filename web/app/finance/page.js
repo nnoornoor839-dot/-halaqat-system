@@ -79,10 +79,15 @@ export default async function FinancePage() {
   const weekDates = getWorkWeekDates();
   const weekStart = weekDates[0];
 
-  const { data: students } = await supabase
-    .from('students')
-    .select('id')
-    .eq('branch_id', profile.branch_id);
+  const [{ data: students }, { data: existing }] = await Promise.all([
+    supabase.from('students').select('id').eq('branch_id', profile.branch_id),
+    supabase
+      .from('financial_requests')
+      .select('id')
+      .eq('branch_id', profile.branch_id)
+      .eq('week_start', weekStart)
+      .maybeSingle(),
+  ]);
   const studentIds = (students ?? []).map((s) => s.id);
 
   const { data: tickets } = await supabase
@@ -92,13 +97,6 @@ export default async function FinancePage() {
     .in('student_id', studentIds.length ? studentIds : [-1]);
 
   const ticketCount = tickets?.length ?? 0;
-
-  const { data: existing } = await supabase
-    .from('financial_requests')
-    .select('id')
-    .eq('branch_id', profile.branch_id)
-    .eq('week_start', weekStart)
-    .maybeSingle();
 
   return (
     <div dir="rtl" className="min-h-screen bg-slate-50 p-8">

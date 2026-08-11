@@ -33,25 +33,21 @@ async function recordSard(formData) {
 
   // بعد الحفظ: نتحقق هل الطالب عبر محطة جديدة (25/50/75/100%) لأول مرة
   let newMilestone = null;
-  const { data: level } = await supabase
-    .from('student_levels')
-    .select('target_start_surah, target_start_ayah, target_end_surah, target_end_ayah')
-    .eq('student_id', studentId)
-    .maybeSingle();
-
-  if (level) {
-    const { data: allRecords } = await supabase
+  const [{ data: level }, { data: allRecords }, { data: existingMilestones }] = await Promise.all([
+    supabase
+      .from('student_levels')
+      .select('target_start_surah, target_start_ayah, target_end_surah, target_end_ayah')
+      .eq('student_id', studentId)
+      .maybeSingle(),
+    supabase
       .from('daily_records')
       .select('start_surah, start_ayah, end_surah, end_ayah')
-      .eq('student_id', studentId);
+      .eq('student_id', studentId),
+    supabase.from('milestone_log').select('milestone_percent').eq('student_id', studentId),
+  ]);
 
+  if (level) {
     const progress = computeProgress(level, allRecords ?? []);
-
-    const { data: existingMilestones } = await supabase
-      .from('milestone_log')
-      .select('milestone_percent')
-      .eq('student_id', studentId);
-
     const already = new Set((existingMilestones ?? []).map((m) => m.milestone_percent));
     const reached = MILESTONES.filter((m) => progress.percent >= m && !already.has(m));
 
@@ -84,22 +80,19 @@ export default async function SardPage({ searchParams }) {
     redirect('/teacher');
   }
 
-  const { data: student } = await supabase
-    .from('students')
-    .select('id, name')
-    .eq('id', studentId)
-    .single();
+  const today = new Date().toISOString().slice(0, 10);
+  const [{ data: student }, { data: todayRecords }] = await Promise.all([
+    supabase.from('students').select('id, name').eq('id', studentId).single(),
+    supabase
+      .from('daily_records')
+      .select('type, start_surah, start_ayah, end_surah, end_ayah')
+      .eq('student_id', studentId)
+      .eq('date', today),
+  ]);
 
   if (!student) {
     redirect('/teacher');
   }
-
-  const today = new Date().toISOString().slice(0, 10);
-  const { data: todayRecords } = await supabase
-    .from('daily_records')
-    .select('type, start_surah, start_ayah, end_surah, end_ayah')
-    .eq('student_id', studentId)
-    .eq('date', today);
 
   const surahName = (num) => SURAHS.find((s) => s.number === num)?.name ?? num;
 

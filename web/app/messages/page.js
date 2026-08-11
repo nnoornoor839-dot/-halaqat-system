@@ -32,20 +32,22 @@ export default async function MessagesPage() {
     .select('id, name, parent_phone, halaqat(name)');
   const studentMap = new Map((students ?? []).map((s) => [s.id, s]));
   const studentIds = [...studentMap.keys()];
+  const idsFilter = studentIds.length ? studentIds : [-1];
 
-  const { data: absences } = await supabase
-    .from('attendance')
-    .select('id, student_id, date')
-    .eq('date', today)
-    .eq('attended', false)
-    .eq('notified', false)
-    .in('student_id', studentIds.length ? studentIds : [-1]);
-
-  const { data: newMilestones } = await supabase
-    .from('milestone_log')
-    .select('id, student_id, milestone_percent')
-    .eq('notified', false)
-    .in('student_id', studentIds.length ? studentIds : [-1]);
+  const [{ data: absences }, { data: newMilestones }] = await Promise.all([
+    supabase
+      .from('attendance')
+      .select('id, student_id, date')
+      .eq('date', today)
+      .eq('attended', false)
+      .eq('notified', false)
+      .in('student_id', idsFilter),
+    supabase
+      .from('milestone_log')
+      .select('id, student_id, milestone_percent')
+      .eq('notified', false)
+      .in('student_id', idsFilter),
+  ]);
 
   const absenceItems = (absences ?? [])
     .map((a) => {

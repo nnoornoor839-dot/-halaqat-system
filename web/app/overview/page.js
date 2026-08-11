@@ -21,27 +21,29 @@ export default async function OverviewPage() {
     .order('name');
 
   const studentIds = (students ?? []).map((s) => s.id);
+  const idsFilter = studentIds.length ? studentIds : [-1];
 
-  const { data: todayAttendance } = await supabase
-    .from('attendance')
-    .select('student_id, attended, early_arrival')
-    .eq('date', today)
-    .in('student_id', studentIds.length ? studentIds : [-1]);
-
-  const { data: levels } = await supabase
-    .from('student_levels')
-    .select('student_id, target_start_surah, target_start_ayah, target_end_surah, target_end_ayah')
-    .in('student_id', studentIds.length ? studentIds : [-1]);
-
-  const { data: allRecords } = await supabase
-    .from('daily_records')
-    .select('student_id, start_surah, start_ayah, end_surah, end_ayah')
-    .in('student_id', studentIds.length ? studentIds : [-1]);
-
-  const { data: milestones } = await supabase
-    .from('milestone_log')
-    .select('student_id, milestone_percent')
-    .in('student_id', studentIds.length ? studentIds : [-1]);
+  const [
+    { data: todayAttendance },
+    { data: levels },
+    { data: allRecords },
+    { data: milestones },
+  ] = await Promise.all([
+    supabase
+      .from('attendance')
+      .select('student_id, attended, early_arrival')
+      .eq('date', today)
+      .in('student_id', idsFilter),
+    supabase
+      .from('student_levels')
+      .select('student_id, target_start_surah, target_start_ayah, target_end_surah, target_end_ayah')
+      .in('student_id', idsFilter),
+    supabase
+      .from('daily_records')
+      .select('student_id, start_surah, start_ayah, end_surah, end_ayah')
+      .in('student_id', idsFilter),
+    supabase.from('milestone_log').select('student_id, milestone_percent').in('student_id', idsFilter),
+  ]);
 
   const attendanceMap = new Map((todayAttendance ?? []).map((a) => [a.student_id, a]));
   const levelMap = new Map((levels ?? []).map((l) => [l.student_id, l]));
