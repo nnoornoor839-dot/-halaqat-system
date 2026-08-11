@@ -94,6 +94,12 @@ export default async function DashboardPage() {
           >
             رسائل اليوم ←
           </a>
+          <a
+            href="/finance"
+            className="inline-block bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-lg px-5 py-2.5 transition"
+          >
+            حاسبة الميزانية ←
+          </a>
         </div>
 
         <form action="/api/logout" method="post" className="mt-4">
