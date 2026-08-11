@@ -1,6 +1,36 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { rangeToAyahSet } from '@/lib/quran-coverage';
+import { SURAHS } from '@/lib/quran-surahs';
+import { QUARTERS, PAGES } from '@/lib/quran-boundaries';
+import QuranEngine from '@/lib/quranEngine';
+
+// يبني فهرس المحرك القرآني المعتمد (نفس quranEngine.js من مشروع المهرة، بدون أي تعديل)
+function buildIndex() {
+  return QuranEngine.buildQuranIndex({
+    surahs: { references: SURAHS.map((s) => ({ number: s.number, numberOfAyahs: s.ayahCount })) },
+    hizbQuarters: { references: QUARTERS },
+    pages: { references: PAGES },
+  });
+}
+
+// عدّ الصفحات "المكتملة فعلياً" (كل آية في الصفحة مسجّلة عند الطالب) — بنفس فلسفة
+// اكتمال الأرباع في quranEngine.js (0/1 لكل صفحة، بلا نسب)، لكن كدالة مساعدة هنا
+// لأن حساب الصفحات اختياري في تصميم المحرك الأصلي ولا يوفّر دالة جاهزة له.
+function countCompletedPages(index, unionSet) {
+  const totals = {};
+  const covered = {};
+  for (let abs = 1; abs <= 6236; abs++) {
+    const p = index.ayahToPage[abs];
+    if (!p) continue;
+    totals[p] = (totals[p] || 0) + 1;
+    if (unionSet.has(abs)) covered[p] = (covered[p] || 0) + 1;
+  }
+  let completed = 0;
+  for (const p in totals) {
+    if (covered[p] === totals[p]) completed++;
+  }
+  return completed;
+}
 
 export default async function ExecutivePage() {
   const supabase = await createClient();
@@ -27,17 +57,42 @@ export default async function ExecutivePage() {
     supabase.from('financial_requests').select('total_amount'),
   ]);
 
-  // إجمالي الآيات المحفوظة (فريدة لكل طالب، بلا تكرار — نفس فلسفة quranEngine.js)
-  const coverageByStudent = new Map();
+  const index = buildIndex();
+
+  // نبني حالة تغطية لكل طالب (كل السجلات، بغض النظر عن النوع جديد/مراجعة — الهدف
+  // "هل لمس الطالب هذه الآية فعلياً؟")، ثم نجمع النتائج عبر كل الطلاب
+  const recordsByStudent = new Map();
   for (const r of allRecords ?? []) {
-    if (!coverageByStudent.has(r.student_id)) coverageByStudent.set(r.student_id, new Set());
-    const set = coverageByStudent.get(r.student_id);
-    for (const a of rangeToAyahSet(r.start_surah, r.start_ayah, r.end_surah, r.end_ayah)) {
-      set.add(a);
-    }
+    if (!recordsByStudent.has(r.student_id)) recordsByStudent.set(r.student_id, []);
+    recordsByStudent.get(r.student_id).push(r);
   }
+
   let totalAyahs = 0;
-  for (const set of coverageByStudent.values()) totalAyahs += set.size;
+  let totalCompletedQuarters = 0;
+  let totalCompletedPages = 0;
+
+  for (const records of recordsByStudent.values()) {
+    const state = QuranEngine.createCoverageState();
+    for (const r of records) {
+      const { ayahsToProcess } = QuranEngine.calculateRangeStats(
+        index,
+        r.start_surah,
+        r.start_ayah,
+        r.end_surah,
+        r.end_ayah
+      );
+      QuranEngine.recordCoverage(state, 'الكل', ayahsToProcess);
+    }
+    const unionSet = new Set(state.coverage['الكل'] || []);
+    const stats = QuranEngine.getCoverageStats(index, state, ['الكل']);
+
+    totalAyahs += stats.totalAyahsCovered;
+    totalCompletedQuarters += stats.completedQuarters;
+    totalCompletedPages += countCompletedPages(index, unionSet);
+  }
+
+  const totalHizbs = Math.floor(totalCompletedQuarters / 4);
+  const totalJuz = Math.floor(totalCompletedQuarters / 8);
 
   // نسبة الانضباط العامة (كل السجلات، كل الوقت)
   const totalAttendanceRows = allAttendance?.length ?? 0;
@@ -55,6 +110,26 @@ export default async function ExecutivePage() {
       label: 'إجمالي الآيات المحفوظة',
       value: totalAyahs.toLocaleString('en-US'),
       color: 'text-emerald-700 bg-emerald-50',
+    },
+    {
+      label: 'إجمالي الصفحات المكتملة',
+      value: totalCompletedPages.toLocaleString('en-US'),
+      color: 'text-cyan-700 bg-cyan-50',
+    },
+    {
+      label: 'إجمالي الأرباع المكتملة',
+      value: totalCompletedQuarters.toLocaleString('en-US'),
+      color: 'text-fuchsia-700 bg-fuchsia-50',
+    },
+    {
+      label: 'إجمالي الأحزاب المكتملة',
+      value: totalHizbs.toLocaleString('en-US'),
+      color: 'text-orange-700 bg-orange-50',
+    },
+    {
+      label: 'إجمالي الأجزاء المكتملة',
+      value: totalJuz.toLocaleString('en-US'),
+      color: 'text-rose-700 bg-rose-50',
     },
     { label: 'نسبة الانضباط العامة', value: `${disciplinePercent}%`, color: 'text-amber-700 bg-amber-50' },
     {
