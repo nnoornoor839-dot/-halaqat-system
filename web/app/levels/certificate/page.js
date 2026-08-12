@@ -4,7 +4,7 @@ import { levelName } from '@/lib/level-name';
 import { requireRole, PAGE_ROLES } from '@/lib/auth';
 import PrintButton from './PrintButton';
 
-const ASSOCIATION_NAME = '[اسم الجمعية]';
+import { ASSOCIATION_NAME } from '@/lib/association';
 
 function surahName(num) {
   return SURAHS.find((s) => s.number === num)?.name ?? num;

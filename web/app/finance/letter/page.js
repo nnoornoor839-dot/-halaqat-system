@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { requireRole, PAGE_ROLES } from '@/lib/auth';
 import PrintButton from './PrintButton';
 
-const ASSOCIATION_NAME = '[اسم الجمعية]';
+import { ASSOCIATION_NAME } from '@/lib/association';
 
 export default async function FinanceLetterPage({ searchParams }) {
   const params = await searchParams;

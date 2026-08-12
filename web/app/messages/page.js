@@ -1,6 +1,6 @@
 import { requireRole, PAGE_ROLES } from '@/lib/auth';
 
-const ASSOCIATION_NAME = '[اسم الجمعية]'; // نص عام مؤقت — يستبدل لاحقاً بالاسم الحقيقي
+import { ASSOCIATION_NAME } from '@/lib/association';
 
 function notifyLink(table, id, phone, text) {
   const params = new URLSearchParams({ table, id: String(id), phone: phone || '', text });
