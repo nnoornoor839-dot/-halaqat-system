@@ -1,27 +1,45 @@
-import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
+import { requireUser, canAccess } from '@/lib/auth';
 
-export default async function DashboardPage() {
-  const supabase = await createClient();
+const ROLE_LABELS = {
+  teacher: 'معلم',
+  supervisor: 'مشرف',
+  admin: 'مدير تنفيذي',
+};
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+// الروابط تُبنى من نفس مصدر الصلاحيات المستخدم لحماية الصفحات، فلا يظهر
+// للمستخدم رابط لصفحة سيُمنع منها.
+const LINKS = [
+  { page: 'teacher', href: '/teacher', label: 'تحضير اليوم', color: 'bg-emerald-600 hover:bg-emerald-700' },
+  { page: 'overview', href: '/overview', label: 'نظرة عامة', color: 'bg-indigo-600 hover:bg-indigo-700' },
+  { page: 'levels', href: '/levels', label: 'المستويات والاختبارات', color: 'bg-rose-600 hover:bg-rose-700' },
+  { page: 'tickets', href: '/tickets', label: 'تذاكر الترفيه', color: 'bg-amber-500 hover:bg-amber-600' },
+  { page: 'screen', href: '/screen', label: 'شاشة العرض الدوارة', color: 'bg-slate-800 hover:bg-slate-900' },
+  { page: 'messages', href: '/messages', label: 'رسائل اليوم', color: 'bg-green-600 hover:bg-green-700' },
+  { page: 'finance', href: '/finance', label: 'حاسبة الميزانية', color: 'bg-teal-600 hover:bg-teal-700' },
+  { page: 'executive', href: '/executive', label: 'لوحة القيادة', color: 'bg-purple-700 hover:bg-purple-800' },
+];
 
-  if (!user) {
-    redirect('/login');
-  }
+export default async function DashboardPage({ searchParams }) {
+  const params = await searchParams;
+  const { supabase, profile } = await requireUser();
 
-  const [{ data: profile }, { data: halaqat }, { data: students }] = await Promise.all([
-    supabase.from('users').select('name, role, branch_id').eq('id', user.id).single(),
+  const [{ data: halaqat }, { data: students }] = await Promise.all([
     supabase.from('halaqat').select('name'),
     supabase.from('students').select('name'),
   ]);
+
+  const visibleLinks = profile ? LINKS.filter((l) => canAccess(profile.role, l.page)) : [];
 
   return (
     <div dir="rtl" className="min-h-screen bg-slate-50 p-8">
       <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-md border border-slate-200 p-8">
         <h1 className="text-2xl font-bold text-slate-800 mb-6">لوحة تحكم نظام الحلقات</h1>
+
+        {params?.denied && (
+          <p className="text-amber-800 text-sm bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+            هذي الصفحة خارج صلاحيات حسابك.
+          </p>
+        )}
 
         {profile ? (
           <div className="flex flex-col gap-2 text-lg">
@@ -31,7 +49,7 @@ export default async function DashboardPage() {
             </p>
             <p>
               <span className="font-bold text-slate-600">الدور: </span>
-              {profile.role}
+              {ROLE_LABELS[profile.role] ?? profile.role}
             </p>
             <p>
               <span className="font-bold text-slate-600">الفرع: </span>
@@ -61,54 +79,15 @@ export default async function DashboardPage() {
         )}
 
         <div className="flex flex-wrap gap-3 mt-8">
-          <a
-            href="/teacher"
-            className="inline-block bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg px-5 py-2.5 transition"
-          >
-            تحضير اليوم ←
-          </a>
-          <a
-            href="/overview"
-            className="inline-block bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg px-5 py-2.5 transition"
-          >
-            نظرة عامة ←
-          </a>
-          <a
-            href="/tickets"
-            className="inline-block bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-lg px-5 py-2.5 transition"
-          >
-            تذاكر الترفيه ←
-          </a>
-          <a
-            href="/screen"
-            className="inline-block bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-lg px-5 py-2.5 transition"
-          >
-            شاشة العرض الدوارة ←
-          </a>
-          <a
-            href="/messages"
-            className="inline-block bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg px-5 py-2.5 transition"
-          >
-            رسائل اليوم ←
-          </a>
-          <a
-            href="/finance"
-            className="inline-block bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-lg px-5 py-2.5 transition"
-          >
-            حاسبة الميزانية ←
-          </a>
-          <a
-            href="/executive"
-            className="inline-block bg-purple-700 hover:bg-purple-800 text-white font-bold rounded-lg px-5 py-2.5 transition"
-          >
-            لوحة القيادة ←
-          </a>
-          <a
-            href="/levels"
-            className="inline-block bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg px-5 py-2.5 transition"
-          >
-            المستويات والاختبارات ←
-          </a>
+          {visibleLinks.map((l) => (
+            <a
+              key={l.href}
+              href={l.href}
+              className={`inline-block ${l.color} text-white font-bold rounded-lg px-5 py-2.5 transition`}
+            >
+              {l.label} ←
+            </a>
+          ))}
         </div>
 
         <form action="/api/logout" method="post" className="mt-4">

@@ -1,5 +1,4 @@
-import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
+import { requireRole, PAGE_ROLES } from '@/lib/auth';
 
 const ASSOCIATION_NAME = '[اسم الجمعية]'; // نص عام مؤقت — يستبدل لاحقاً بالاسم الحقيقي
 
@@ -9,15 +8,7 @@ function notifyLink(table, id, phone, text) {
 }
 
 export default async function MessagesPage() {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect('/login');
-  }
+  const { supabase } = await requireRole(PAGE_ROLES.messages);
 
   const today = new Date().toISOString().slice(0, 10);
   const todayLabel = new Date().toLocaleDateString('ar-SA', {

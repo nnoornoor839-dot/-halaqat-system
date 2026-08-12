@@ -1,5 +1,5 @@
-import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
+import { requireRole, PAGE_ROLES } from '@/lib/auth';
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
@@ -8,8 +8,9 @@ export async function GET(request) {
   const phone = searchParams.get('phone');
   const text = searchParams.get('text');
 
+  const { supabase } = await requireRole(PAGE_ROLES.messages);
+
   if (table === 'attendance' || table === 'milestone_log') {
-    const supabase = await createClient();
     await supabase.from(table).update({ notified: true }).eq('id', id);
   }
 

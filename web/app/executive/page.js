@@ -1,7 +1,6 @@
-import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
 import QuranEngine from '@/lib/quranEngine';
 import { buildQuranIndex } from '@/lib/quran-index';
+import { requireRole, PAGE_ROLES } from '@/lib/auth';
 
 // عدّ الصفحات "المكتملة فعلياً" (كل آية في الصفحة مسجّلة عند الطالب) — بنفس فلسفة
 // اكتمال الأرباع في quranEngine.js (0/1 لكل صفحة، بلا نسب)، لكن كدالة مساعدة هنا
@@ -23,15 +22,7 @@ function countCompletedPages(index, unionSet) {
 }
 
 export default async function ExecutivePage() {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect('/login');
-  }
+  const { supabase } = await requireRole(PAGE_ROLES.executive);
 
   const [
     { data: students },

@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
+import { requireRole, PAGE_ROLES } from '@/lib/auth';
 
 function getWorkWeekDates() {
   const today = new Date();
@@ -23,7 +23,7 @@ async function generateRequest(formData) {
   const costPerStudent = parseFloat(formData.get('costPerStudent'));
   const totalAmount = ticketCount * costPerStudent;
 
-  const supabase = await createClient();
+  const { supabase } = await requireRole(PAGE_ROLES.finance);
   const { data, error } = await supabase
     .from('financial_requests')
     .insert({
@@ -43,21 +43,7 @@ async function generateRequest(formData) {
 }
 
 export default async function FinancePage() {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect('/login');
-  }
-
-  const { data: profile } = await supabase
-    .from('users')
-    .select('branch_id')
-    .eq('id', user.id)
-    .single();
+  const { supabase, profile } = await requireRole(PAGE_ROLES.finance);
 
   if (!profile?.branch_id) {
     return (

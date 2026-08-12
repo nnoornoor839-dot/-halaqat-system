@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
 import { SURAHS } from '@/lib/quran-surahs';
 import { scoreToGrade, isPassing } from '@/lib/exam-grade';
+import { requireRole, PAGE_ROLES } from '@/lib/auth';
 
 function surahName(num) {
   return SURAHS.find((s) => s.number === num)?.name ?? num;
@@ -23,7 +23,7 @@ async function recordExam(formData) {
   const passed = isPassing(score);
   const retryDate = !passed && retryDateInput ? retryDateInput : null;
 
-  const supabase = await createClient();
+  const { supabase } = await requireRole(PAGE_ROLES.levels);
   const { data, error } = await supabase
     .from('exam_results')
     .insert({ level_id: levelId, exam_date: examDate, score, grade, passed, retry_date: retryDate })
@@ -41,15 +41,7 @@ export default async function ExamPage({ searchParams }) {
   const params = await searchParams;
   const levelId = params?.levelId;
 
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect('/login');
-  }
+  const { supabase } = await requireRole(PAGE_ROLES.levels);
 
   if (!levelId) {
     redirect('/levels');

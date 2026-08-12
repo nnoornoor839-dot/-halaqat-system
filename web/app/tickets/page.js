@@ -1,6 +1,5 @@
-import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
+import { requireRole, PAGE_ROLES } from '@/lib/auth';
 
 const DAY_NAMES = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء'];
 
@@ -22,7 +21,7 @@ async function issueTickets(formData) {
   const weekStart = formData.get('weekStart');
   const eligibleIds = formData.getAll('eligibleStudentId');
 
-  const supabase = await createClient();
+  const { supabase } = await requireRole(PAGE_ROLES.tickets);
   if (eligibleIds.length > 0) {
     // نتأكد ما نصدر تذكرة مكررة (الصفحة نفسها ما ترسل إلا الطلاب اللي لسه ما صدرت لهم،
     // بس نتحقق مرة ثانية هنا احتياطاً من حالة سباق لو فتح المشرف الصفحة بتبويبين).
@@ -44,15 +43,7 @@ async function issueTickets(formData) {
 }
 
 export default async function TicketsPage() {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect('/login');
-  }
+  const { supabase } = await requireRole(PAGE_ROLES.tickets);
 
   const weekDates = getWorkWeekDates();
   const weekStart = weekDates[0];

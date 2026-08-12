@@ -1,8 +1,8 @@
 import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
 import { SURAHS } from '@/lib/quran-surahs';
 import { scoreToGrade, isPassing } from '@/lib/exam-grade';
 import { levelName } from '@/lib/level-name';
+import { requireRole, PAGE_ROLES } from '@/lib/auth';
 
 // الحفظ يبدأ من الناس صعوداً إلى البقرة، فنعرض السور بالترتيب المعكوس
 // ليكون أول خيار في القائمة هو ما يبدأ منه الطالب فعلاً.
@@ -20,7 +20,8 @@ async function assignLevel(formData) {
   const endAyah = parseInt(formData.get('endAyah'), 10);
 
   const back = `/levels/assign?studentId=${studentId}${mode === 'historical' ? '&mode=historical' : ''}`;
-  const supabase = await createClient();
+  // الإجراء نفسه نقطة وصول مستقلة عن الصفحة، فيحتاج تحققه الخاص
+  const { supabase } = await requireRole(PAGE_ROLES.levels);
 
   // في الوضع التاريخي نتحقق من الدرجة قبل إنشاء المستوى، حتى لا يبقى
   // مستوى معلّق بلا نتيجة لو كانت الدرجة غير صالحة.
@@ -85,15 +86,7 @@ export default async function AssignLevelPage({ searchParams }) {
   const studentId = params?.studentId;
   const isHistorical = params?.mode === 'historical';
 
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect('/login');
-  }
+  const { supabase } = await requireRole(PAGE_ROLES.levels);
 
   if (!studentId) {
     redirect('/levels');

@@ -1,8 +1,8 @@
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
 import { computeProgress } from '@/lib/quran-progress';
 import { buildQuranIndex } from '@/lib/quran-index';
+import { requireRole, PAGE_ROLES } from '@/lib/auth';
 
 async function markAttendance(formData) {
   'use server';
@@ -11,7 +11,7 @@ async function markAttendance(formData) {
   const early = formData.get('early') === 'true';
   const today = new Date().toISOString().slice(0, 10);
 
-  const supabase = await createClient();
+  const { supabase } = await requireRole(PAGE_ROLES.teacher);
   const { error } = await supabase.from('attendance').upsert(
     { student_id: studentId, date: today, attended, early_arrival: early },
     { onConflict: 'student_id,date' }
@@ -26,15 +26,7 @@ async function markAttendance(formData) {
 
 export default async function TeacherPage({ searchParams }) {
   const params = await searchParams;
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect('/login');
-  }
+  const { supabase } = await requireRole(PAGE_ROLES.teacher);
 
   const today = new Date().toISOString().slice(0, 10);
 

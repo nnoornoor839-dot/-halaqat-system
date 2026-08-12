@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
+import { requireRole, PAGE_ROLES } from '@/lib/auth';
 import PrintButton from './PrintButton';
 
 const ASSOCIATION_NAME = '[اسم الجمعية]';
@@ -8,15 +8,7 @@ export default async function FinanceLetterPage({ searchParams }) {
   const params = await searchParams;
   const id = params?.id;
 
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect('/login');
-  }
+  const { supabase } = await requireRole(PAGE_ROLES.finance);
 
   if (!id) {
     redirect('/finance');

@@ -1,8 +1,8 @@
 import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
 import { SURAHS } from '@/lib/quran-surahs';
 import { computeProgress } from '@/lib/quran-progress';
 import { buildQuranIndex } from '@/lib/quran-index';
+import { requireRole, PAGE_ROLES } from '@/lib/auth';
 
 const MILESTONES = [25, 50, 75, 100];
 
@@ -17,7 +17,7 @@ async function recordSard(formData) {
   const endAyah = parseInt(formData.get('endAyah'), 10);
   const today = new Date().toISOString().slice(0, 10);
 
-  const supabase = await createClient();
+  const { supabase } = await requireRole(PAGE_ROLES.sard);
   const { error } = await supabase.from('daily_records').insert({
     student_id: studentId,
     date: today,
@@ -77,15 +77,7 @@ export default async function SardPage({ searchParams }) {
   const params = await searchParams;
   const studentId = params?.studentId;
 
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect('/login');
-  }
+  const { supabase } = await requireRole(PAGE_ROLES.sard);
 
   if (!studentId) {
     redirect('/teacher');

@@ -1,20 +1,11 @@
-import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
 import { computeProgress } from '@/lib/quran-progress';
 import { buildQuranIndex } from '@/lib/quran-index';
 import QuranEngine from '@/lib/quranEngine';
+import { requireRole, PAGE_ROLES } from '@/lib/auth';
 import ScreenRotator from './ScreenRotator';
 
 export default async function ScreenPage() {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect('/login');
-  }
+  const { supabase } = await requireRole(PAGE_ROLES.screen);
 
   const [{ data: halaqatRows }, { data: students }] = await Promise.all([
     supabase.from('halaqat').select('id, name').order('name'),

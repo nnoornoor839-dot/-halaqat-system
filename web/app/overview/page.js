@@ -1,18 +1,9 @@
-import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
 import { computeProgress } from '@/lib/quran-progress';
 import { buildQuranIndex } from '@/lib/quran-index';
+import { requireRole, PAGE_ROLES } from '@/lib/auth';
 
 export default async function OverviewPage() {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect('/login');
-  }
+  const { supabase } = await requireRole(PAGE_ROLES.overview);
 
   const today = new Date().toISOString().slice(0, 10);
 

@@ -1,24 +1,15 @@
-import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
 import { SURAHS } from '@/lib/quran-surahs';
 import { computeProgress } from '@/lib/quran-progress';
 import { buildQuranIndex } from '@/lib/quran-index';
 import { levelName } from '@/lib/level-name';
+import { requireRole, PAGE_ROLES } from '@/lib/auth';
 
 function surahName(num) {
   return SURAHS.find((s) => s.number === num)?.name ?? num;
 }
 
 export default async function LevelsPage() {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect('/login');
-  }
+  const { supabase } = await requireRole(PAGE_ROLES.levels);
 
   const { data: students } = await supabase
     .from('students')
