@@ -25,6 +25,26 @@ export async function requireUser() {
   return { supabase, user, profile };
 }
 
+// نسخة لا تُحوّل لتسجيل الدخول — يحتاجها اللايهوت العام، لأنه يُشغَّل على صفحة
+// تسجيل الدخول نفسها، فالتحويل منها يصنع حلقة لا تنتهي.
+export async function getOptionalUser() {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { supabase, user: null, profile: null };
+
+  const { data: profile } = await supabase
+    .from('users')
+    .select('id, name, role, branch_id')
+    .eq('id', user.id)
+    .single();
+
+  return { supabase, user, profile };
+}
+
 export async function requireRole(allowedRoles) {
   const ctx = await requireUser();
 

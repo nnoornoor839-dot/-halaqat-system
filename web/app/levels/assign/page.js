@@ -111,7 +111,7 @@ export default async function AssignLevelPage({ searchParams }) {
   const today = new Date().toISOString().slice(0, 10);
 
   return (
-    <div dir="rtl" className="min-h-screen bg-slate-50 p-8">
+    <div dir="rtl" className="bg-slate-50 p-8">
       <div className="max-w-xl mx-auto bg-white rounded-2xl shadow-md border border-slate-200 p-8">
         <h1 className="text-2xl font-bold text-slate-800 mb-1">
           {isHistorical ? 'تسجيل مستوى سابق' : 'تعيين المستوى التالي'}

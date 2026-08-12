@@ -40,7 +40,7 @@ export default async function FinanceLetterPage({ searchParams }) {
   });
 
   return (
-    <div dir="rtl" className="min-h-screen bg-slate-100 p-8 print:bg-white print:p-0">
+    <div dir="rtl" className="bg-slate-100 p-8 print:bg-white print:p-0">
       <style>{`
         @media print {
           .no-print { display: none !important; }

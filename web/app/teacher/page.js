@@ -142,7 +142,7 @@ export default async function TeacherPage({ searchParams }) {
   }
 
   return (
-    <div dir="rtl" className="min-h-screen bg-slate-50 p-6 sm:p-8">
+    <div dir="rtl" className="bg-slate-50 p-6 sm:p-8">
       <div className="max-w-5xl mx-auto">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-slate-800">تحضير اليوم</h1>
@@ -319,10 +319,6 @@ export default async function TeacherPage({ searchParams }) {
             <p className="text-slate-400 text-center py-8">ما فيه طلاب مرتبطين بحسابك.</p>
           )}
         </div>
-
-        <a href="/dashboard" className="inline-block mt-8 text-brand-700 font-bold">
-          ← رجوع للوحة التحكم
-        </a>
       </div>
     </div>
   );

@@ -165,7 +165,7 @@ export default async function ReviewPage({ searchParams }) {
   }
 
   return (
-    <div dir="rtl" className="min-h-screen bg-slate-50 p-8">
+    <div dir="rtl" className="bg-slate-50 p-8">
       <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow-md border border-slate-200 p-8">
         <h1 className="text-2xl font-bold text-slate-800 mb-1">المراجعة</h1>
         <p className="text-slate-500 mb-6">نصيب اليوم محسوب تلقائياً لكل طالب — {today}</p>
@@ -246,10 +246,6 @@ export default async function ReviewPage({ searchParams }) {
         <p className="text-xs text-slate-400 mt-6 leading-relaxed">
           الدورة تتقدّم بتسجيل المراجعة لا بمرور الأيام — لو غاب الطالب، ينتظره نصيبه كما هو.
         </p>
-
-        <a href="/dashboard" className="inline-block mt-4 text-brand-700 font-bold">
-          ← رجوع للوحة التحكم
-        </a>
       </div>
     </div>
   );

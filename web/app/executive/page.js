@@ -121,7 +121,7 @@ export default async function ExecutivePage() {
   ];
 
   return (
-    <div dir="rtl" className="min-h-screen bg-slate-50 p-8">
+    <div dir="rtl" className="bg-slate-50 p-8">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold text-slate-800 mb-1">لوحة القيادة</h1>
         <p className="text-slate-500 mb-8">نظرة شاملة على أداء النظام</p>
@@ -134,10 +134,6 @@ export default async function ExecutivePage() {
             </div>
           ))}
         </div>
-
-        <a href="/dashboard" className="inline-block mt-8 text-brand-700 font-bold">
-          ← رجوع للوحة التحكم
-        </a>
       </div>
     </div>
   );

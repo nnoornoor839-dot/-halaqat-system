@@ -91,7 +91,7 @@ export default async function TicketsPage() {
   });
 
   return (
-    <div dir="rtl" className="min-h-screen bg-slate-50 p-8">
+    <div dir="rtl" className="bg-slate-50 p-8">
       <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow-md border border-slate-200 p-8">
         <h1 className="text-2xl font-bold text-slate-800 mb-1">تذاكر الترفيه الأسبوعية</h1>
         <p className="text-slate-500 mb-6">
@@ -162,10 +162,6 @@ export default async function TicketsPage() {
             إصدار تذاكر المستحقين 🎟️
           </button>
         </form>
-
-        <a href="/dashboard" className="inline-block mt-8 text-brand-700 font-bold">
-          ← رجوع للوحة التحكم
-        </a>
       </div>
     </div>
   );

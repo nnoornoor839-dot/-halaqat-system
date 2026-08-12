@@ -112,7 +112,7 @@ export default async function LevelsPage() {
   const overdueRows = rows.filter((r) => r.status.overdue);
 
   return (
-    <div dir="rtl" className="min-h-screen bg-slate-50 p-8">
+    <div dir="rtl" className="bg-slate-50 p-8">
       <div className="max-w-6xl mx-auto bg-white rounded-2xl shadow-md border border-slate-200 p-8">
         <h1 className="text-2xl font-bold text-slate-800 mb-1">إدارة المستويات والاختبارات</h1>
         <p className="text-slate-500 mb-6">
@@ -235,10 +235,6 @@ export default async function LevelsPage() {
           للطالب المنتقل: سجّل مستوياته السابقة بالترتيب أولاً (كل واحد بدرجته)، ثم عيّن مستواه
           الحالي. النظام يرقّم المستويات تلقائياً حسب ترتيب تسجيلها.
         </p>
-
-        <a href="/dashboard" className="inline-block mt-6 text-brand-700 font-bold">
-          ← رجوع للوحة التحكم
-        </a>
       </div>
     </div>
   );

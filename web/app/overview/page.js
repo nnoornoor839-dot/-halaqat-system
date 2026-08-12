@@ -177,7 +177,7 @@ export default async function OverviewPage() {
   };
 
   return (
-    <div dir="rtl" className="min-h-screen bg-slate-50 p-6 sm:p-8">
+    <div dir="rtl" className="bg-slate-50 p-6 sm:p-8">
       <div className="max-w-6xl mx-auto bg-white rounded-2xl shadow-md border border-slate-200 p-6 sm:p-8">
         <h1 className="text-2xl font-bold text-slate-800 mb-1">نظرة عامة</h1>
         <p className="text-slate-500 mb-6">متابعة الفرع وما يحتاج تدخّلاً — {today}</p>
@@ -258,10 +258,6 @@ export default async function OverviewPage() {
             </tbody>
           </table>
         </div>
-
-        <a href="/dashboard" className="inline-block mt-8 text-brand-700 font-bold">
-          ← رجوع للوحة التحكم
-        </a>
       </div>
     </div>
   );
