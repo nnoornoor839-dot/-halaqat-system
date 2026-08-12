@@ -23,7 +23,7 @@ async function assignLevel(formData) {
   });
 
   if (error) {
-    redirect(`/levels/assign?studentId=${studentId}&error=1`);
+    redirect(`/levels/assign?studentId=${studentId}&error=${encodeURIComponent(error.message)}`);
   }
 
   redirect('/levels');
@@ -61,7 +61,7 @@ export default async function AssignLevelPage({ searchParams }) {
 
         {params?.error && (
           <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
-            صار خطأ أثناء الحفظ، حاول مرة ثانية.
+            {params.error}
           </p>
         )}
 

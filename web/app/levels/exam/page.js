@@ -16,7 +16,7 @@ async function recordExam(formData) {
   const retryDateInput = formData.get('retryDate');
 
   if (Number.isNaN(score) || score < 0 || score > 100) {
-    redirect(`/levels/exam?levelId=${levelId}&error=1`);
+    redirect(`/levels/exam?levelId=${levelId}&error=${encodeURIComponent('الدرجة لازم تكون رقم بين 0 و100')}`);
   }
 
   const grade = scoreToGrade(score);
@@ -31,7 +31,7 @@ async function recordExam(formData) {
     .single();
 
   if (error || !data) {
-    redirect(`/levels/exam?levelId=${levelId}&error=1`);
+    redirect(`/levels/exam?levelId=${levelId}&error=${encodeURIComponent(error?.message || 'خطأ غير معروف')}`);
   }
 
   redirect(passed ? `/levels/certificate?examId=${data.id}` : '/levels');
@@ -81,7 +81,7 @@ export default async function ExamPage({ searchParams }) {
 
         {params?.error && (
           <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
-            تأكد إن الدرجة رقم بين 0 و100، وحاول مرة ثانية.
+            {params.error}
           </p>
         )}
 
