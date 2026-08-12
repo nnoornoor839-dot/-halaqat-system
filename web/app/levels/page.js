@@ -50,16 +50,12 @@ export default async function LevelsPage() {
   const currentLevelIds = [...levelMap.values()].map((l) => l.id);
   const idsFilterLevels = currentLevelIds.length ? currentLevelIds : [-1];
 
-  const [{ data: milestones100 }, { data: examRows }] = await Promise.all([
-    supabase.from('milestone_log').select('level_id').eq('milestone_percent', 100).in('level_id', idsFilterLevels),
-    supabase
-      .from('exam_results')
-      .select('id, level_id, exam_date, score, grade, passed, retry_date')
-      .in('level_id', idsFilterLevels)
-      .order('id', { ascending: true }),
-  ]);
+  const { data: examRows } = await supabase
+    .from('exam_results')
+    .select('id, level_id, exam_date, score, grade, passed, retry_date')
+    .in('level_id', idsFilterLevels)
+    .order('id', { ascending: true });
 
-  const readyLevelIds = new Set((milestones100 ?? []).map((m) => m.level_id));
   const examByLevel = new Map((examRows ?? []).map((e) => [e.level_id, e])); // آخر محاولة تفوز (ترتيب تصاعدي)
 
   const quranIndex = buildQuranIndex();
@@ -80,7 +76,7 @@ export default async function LevelsPage() {
         label: exam.retry_date ? `⏳ إعادة بتاريخ ${exam.retry_date}` : '⏳ بانتظار إعادة الاختبار',
         color: 'text-red-600 font-bold',
       };
-    } else if (readyLevelIds.has(level.id)) {
+    } else if (progress && progress.percent >= 100) {
       status = { key: 'ready', label: '🏆 جاهز للاختبار', color: 'text-amber-700 font-bold' };
     } else {
       status = { key: 'progress', label: 'قيد التقدم', color: 'text-slate-500' };
