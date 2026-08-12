@@ -49,21 +49,26 @@ export default async function ScreenPage() {
       }),
   }));
 
-  // فرسان اليوم: أعلى 3 طلاب حسب عدد الآيات المسجّلة اليوم فقط (بلا تكرار لو فيه تسجيلات متداخلة)
+  // فرسان اليوم: ترتيب بالآيات الجديدة فعلاً اليوم، لا بالمسرود.
+  // السرد تراكمي من أول السورة، فطالب سرد ١-١٠ اليوم وكان واصلاً ١-٥ أمس
+  // أنتج ٥ آيات جديدة لا ١٠ — وبدون هذا الفرق يتصدّر صاحب السورة الطويلة
+  // لمجرد تراكم إعادته.
   const today = new Date().toISOString().slice(0, 10);
   const studentMap = new Map((students ?? []).map((s) => [s.id, s]));
   const halaqahNameMap = new Map((halaqatRows ?? []).map((h) => [h.id, h.name]));
 
-  const todayRecordsByStudent = new Map();
+  const splitByStudent = new Map();
   for (const r of allRecords ?? []) {
-    if (r.date !== today) continue;
-    if (!todayRecordsByStudent.has(r.student_id)) todayRecordsByStudent.set(r.student_id, []);
-    todayRecordsByStudent.get(r.student_id).push(r);
+    if (!splitByStudent.has(r.student_id)) {
+      splitByStudent.set(r.student_id, { before: [], today: [] });
+    }
+    const bucket = splitByStudent.get(r.student_id);
+    if (r.date === today) bucket.today.push(r);
+    else if (r.date < today) bucket.before.push(r);
   }
 
-  const champions = [];
-  for (const [studentId, records] of todayRecordsByStudent.entries()) {
-    const state = QuranEngine.createCoverageState();
+  const ayahsOf = (records) => {
+    const set = new Set();
     for (const r of records) {
       const { ayahsToProcess } = QuranEngine.calculateRangeStats(
         quranIndex,
@@ -72,9 +77,19 @@ export default async function ScreenPage() {
         r.end_surah,
         r.end_ayah
       );
-      QuranEngine.recordCoverage(state, 'اليوم', ayahsToProcess);
+      for (const a of ayahsToProcess) set.add(a);
     }
-    const ayahsToday = (state.coverage['اليوم'] || []).length;
+    return set;
+  };
+
+  const champions = [];
+  for (const [studentId, { before, today: todayRecs }] of splitByStudent.entries()) {
+    if (todayRecs.length === 0) continue;
+    const beforeSet = ayahsOf(before);
+    let ayahsToday = 0;
+    for (const a of ayahsOf(todayRecs)) {
+      if (!beforeSet.has(a)) ayahsToday++;
+    }
     const student = studentMap.get(studentId);
     if (ayahsToday === 0 || !student) continue;
     champions.push({

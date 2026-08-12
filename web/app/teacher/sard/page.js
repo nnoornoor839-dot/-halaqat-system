@@ -2,75 +2,155 @@ import { redirect } from 'next/navigation';
 import { SURAHS } from '@/lib/quran-surahs';
 import { computeProgress } from '@/lib/quran-progress';
 import { buildQuranIndex } from '@/lib/quran-index';
+import { computeNewMemorizationState } from '@/lib/new-memorization';
+import { levelName } from '@/lib/level-name';
 import { requireRole, PAGE_ROLES } from '@/lib/auth';
 
 const MILESTONES = [25, 50, 75, 100];
+
+function surahName(num) {
+  return SURAHS.find((s) => s.number === num)?.name ?? num;
+}
+
+function surahAyahCount(num) {
+  return SURAHS.find((s) => s.number === num)?.ayahCount ?? 0;
+}
+
+// نجمع كل ما تحتاجه الصفحة والإجراءات معاً، حتى يُعاد حساب الحالة من مصدرها
+// في كل مرة بدل الاعتماد على ما أرسله المتصفح (قد يكون قديماً أو معدَّلاً).
+async function loadState(supabase, studentId) {
+  const [{ data: student }, { data: level }, { data: allRecords }, { data: deliveries }] =
+    await Promise.all([
+      supabase.from('students').select('id, name').eq('id', studentId).single(),
+      supabase
+        .from('student_levels')
+        .select(
+          'id, level_number, target_start_surah, target_start_ayah, target_end_surah, target_end_ayah'
+        )
+        .eq('student_id', studentId)
+        .order('level_number', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from('daily_records')
+        .select('type, date, start_surah, start_ayah, end_surah, end_ayah')
+        .eq('student_id', studentId),
+      supabase
+        .from('surah_deliveries')
+        .select('surah_number, approved, delivered_at')
+        .eq('student_id', studentId),
+    ]);
+
+  const records = allRecords ?? [];
+  const newRecords = records.filter((r) => r.type === 'جديد');
+  const index = buildQuranIndex();
+  const state = level
+    ? computeNewMemorizationState(index, level, newRecords, deliveries ?? [], level.level_number)
+    : null;
+
+  return { student, level, records, newRecords, deliveries: deliveries ?? [], index, state };
+}
 
 async function recordSard(formData) {
   'use server';
 
   const studentId = formData.get('studentId');
-  const type = formData.get('type');
-  const startSurah = parseInt(formData.get('startSurah'), 10);
-  const startAyah = parseInt(formData.get('startAyah'), 10);
-  const endSurah = parseInt(formData.get('endSurah'), 10);
   const endAyah = parseInt(formData.get('endAyah'), 10);
-  const today = new Date().toISOString().slice(0, 10);
+  const back = `/teacher/sard?studentId=${studentId}`;
 
   const { supabase } = await requireRole(PAGE_ROLES.sard);
+  const { level, newRecords, index, state } = await loadState(supabase, studentId);
+
+  if (!level || !state) {
+    redirect(`${back}&error=${encodeURIComponent('ما فيه مستوى محدد لهذا الطالب')}`);
+  }
+  // البوابة تُطبَّق هنا لا في الواجهة فقط، فالإجراء نقطة وصول مستقلة
+  if (state.pendingDelivery) {
+    redirect(
+      `${back}&error=${encodeURIComponent(`لازم تسليم سورة ${surahName(state.pendingDelivery)} أولاً`)}`
+    );
+  }
+  if (state.isLevelComplete) {
+    redirect(`${back}&error=${encodeURIComponent('الطالب أنهى مستواه — جاهز للاختبار')}`);
+  }
+
+  const maxAyah = surahAyahCount(state.currentSurah);
+  if (Number.isNaN(endAyah) || endAyah < 1 || endAyah > maxAyah) {
+    redirect(
+      `${back}&error=${encodeURIComponent(`آية النهاية لازم تكون بين 1 و${maxAyah}`)}`
+    );
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
   const { error } = await supabase.from('daily_records').insert({
     student_id: studentId,
     date: today,
-    type,
-    start_surah: startSurah,
-    start_ayah: startAyah,
-    end_surah: endSurah,
+    type: 'جديد',
+    start_surah: state.currentSurah,
+    start_ayah: 1,
+    end_surah: state.currentSurah,
     end_ayah: endAyah,
   });
 
   if (error) {
-    redirect(`/teacher/sard?studentId=${studentId}&error=1`);
+    redirect(`${back}&error=${encodeURIComponent(error.message)}`);
   }
 
-  // بعد الحفظ: نتحقق هل الطالب عبر محطة جديدة (25/50/75/100%) لأول مرة
-  // بالنسبة لهدفه الحالي بالذات (آخر صف بجدول student_levels) — مو بالنسبة
-  // لكل تاريخه، عشان لو خلص هدف قديم وانعطى هدف جديد، تبدأ محطاته من جديد.
+  // هل عبر الطالب محطة جديدة (25/50/75/100%) بالنسبة لمستواه الحالي؟
   let newMilestone = null;
-  const [{ data: level }, { data: allRecords }] = await Promise.all([
-    supabase
-      .from('student_levels')
-      .select('id, target_start_surah, target_start_ayah, target_end_surah, target_end_ayah')
-      .eq('student_id', studentId)
-      .order('id', { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-    supabase
-      .from('daily_records')
-      .select('type, start_surah, start_ayah, end_surah, end_ayah')
-      .eq('student_id', studentId),
-  ]);
+  const { data: existingMilestones } = await supabase
+    .from('milestone_log')
+    .select('milestone_percent')
+    .eq('student_id', studentId)
+    .eq('level_id', level.id);
 
-  if (level) {
-    const { data: existingMilestones } = await supabase
+  const updatedRecords = [
+    ...newRecords,
+    {
+      type: 'جديد',
+      start_surah: state.currentSurah,
+      start_ayah: 1,
+      end_surah: state.currentSurah,
+      end_ayah: endAyah,
+    },
+  ];
+  const progress = computeProgress(index, level, updatedRecords);
+  const already = new Set((existingMilestones ?? []).map((m) => m.milestone_percent));
+  const reached = MILESTONES.filter((m) => progress.percent >= m && !already.has(m));
+
+  if (reached.length > 0) {
+    newMilestone = Math.max(...reached);
+    await supabase
       .from('milestone_log')
-      .select('milestone_percent')
-      .eq('student_id', studentId)
-      .eq('level_id', level.id);
-
-    const quranIndex = buildQuranIndex();
-    const progress = computeProgress(quranIndex, level, allRecords ?? []);
-    const already = new Set((existingMilestones ?? []).map((m) => m.milestone_percent));
-    const reached = MILESTONES.filter((m) => progress.percent >= m && !already.has(m));
-
-    if (reached.length > 0) {
-      newMilestone = Math.max(...reached);
-      await supabase
-        .from('milestone_log')
-        .insert(reached.map((m) => ({ student_id: studentId, level_id: level.id, milestone_percent: m })));
-    }
+      .insert(reached.map((m) => ({ student_id: studentId, level_id: level.id, milestone_percent: m })));
   }
 
   redirect(newMilestone ? `/teacher?milestone=${newMilestone}` : '/teacher');
+}
+
+async function recordDelivery(formData) {
+  'use server';
+
+  const studentId = formData.get('studentId');
+  const surahNumber = parseInt(formData.get('surahNumber'), 10);
+  const approved = formData.get('approved') === 'true';
+  const back = `/teacher/sard?studentId=${studentId}`;
+
+  const { supabase } = await requireRole(PAGE_ROLES.sard);
+  const today = new Date().toISOString().slice(0, 10);
+
+  const { error } = await supabase.from('surah_deliveries').insert({
+    student_id: studentId,
+    surah_number: surahNumber,
+    delivered_at: today,
+    approved,
+  });
+
+  if (error) {
+    redirect(`${back}&error=${encodeURIComponent(error.message)}`);
+  }
+
+  redirect('/teacher');
 }
 
 export default async function SardPage({ searchParams }) {
@@ -83,128 +163,152 @@ export default async function SardPage({ searchParams }) {
     redirect('/teacher');
   }
 
-  const today = new Date().toISOString().slice(0, 10);
-  const [{ data: student }, { data: todayRecords }] = await Promise.all([
-    supabase.from('students').select('id, name').eq('id', studentId).single(),
-    supabase
-      .from('daily_records')
-      .select('type, start_surah, start_ayah, end_surah, end_ayah')
-      .eq('student_id', studentId)
-      .eq('date', today),
-  ]);
+  const { student, level, records, state } = await loadState(supabase, studentId);
 
   if (!student) {
     redirect('/teacher');
   }
 
-  const surahName = (num) => SURAHS.find((s) => s.number === num)?.name ?? num;
+  const today = new Date().toISOString().slice(0, 10);
+  const todayRecords = records.filter((r) => r.date === today);
+
+  // متى آخر مرة سجّل فيها الطالب جديداً في سورته الحالية — تذكير للمعلم لا أكثر
+  let lastRecordNote = null;
+  if (state?.currentSurah && state.lastAyahReached > 0) {
+    const surahRecords = records
+      .filter((r) => r.type === 'جديد' && r.end_surah === state.currentSurah)
+      .sort((a, b) => (a.date < b.date ? 1 : -1));
+    const lastDate = surahRecords[0]?.date;
+    if (lastDate) {
+      const days = Math.round((new Date(today) - new Date(lastDate)) / 86400000);
+      const when = days === 0 ? 'اليوم' : days === 1 ? 'أمس' : `قبل ${days} أيام`;
+      lastRecordNote = `آخر نقطة سجّلها الطالب: آية ${state.lastAyahReached} — ${when}`;
+    }
+  }
+
+  const errorText = params?.error;
 
   return (
     <div dir="rtl" className="min-h-screen bg-slate-50 p-8">
       <div className="max-w-xl mx-auto bg-white rounded-2xl shadow-md border border-slate-200 p-8">
-        <h1 className="text-2xl font-bold text-slate-800 mb-1">تسجيل سرد</h1>
-        <p className="text-slate-500 mb-6">
-          {student.name} — {today}
-        </p>
-
-        {params?.error && (
-          <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
-            صار خطأ أثناء الحفظ، تأكد من البيانات وحاول مرة ثانية.
+        <h1 className="text-2xl font-bold text-slate-800 mb-1">تسجيل الحفظ الجديد</h1>
+        <p className="text-slate-500 mb-1">{student.name}</p>
+        {level && (
+          <p className="text-slate-400 text-sm mb-6">
+            {levelName(level.level_number)} — {today}
           </p>
         )}
 
-        {todayRecords && todayRecords.length > 0 && (
+        {errorText && (
+          <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+            {errorText}
+          </p>
+        )}
+
+        {todayRecords.length > 0 && (
           <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 mb-6 text-sm">
             <p className="font-bold text-slate-600 mb-2">مسجّل اليوم:</p>
             <ul className="flex flex-col gap-1">
               {todayRecords.map((r, i) => (
                 <li key={i}>
-                  {r.type}: من {surahName(r.start_surah)} ({r.start_ayah}) إلى{' '}
-                  {surahName(r.end_surah)} ({r.end_ayah})
+                  {r.type}: {surahName(r.start_surah)} {r.start_ayah} — {r.end_ayah}
                 </li>
               ))}
             </ul>
           </div>
         )}
 
-        <form action={recordSard} className="flex flex-col gap-4">
-          <input type="hidden" name="studentId" value={student.id} />
+        {!level && (
+          <p className="text-slate-500 bg-slate-50 border border-slate-200 rounded-xl p-4">
+            ما فيه مستوى محدد لهذا الطالب. المشرف يعيّن له مستوى أولاً من صفحة المستويات.
+          </p>
+        )}
 
-          <div>
-            <label className="block text-sm font-bold text-slate-600 mb-1">النوع</label>
-            <select
-              name="type"
-              required
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-emerald-500"
-            >
-              <option value="جديد">حفظ جديد</option>
-              <option value="مراجعة">مراجعة</option>
-            </select>
+        {level && state?.isLevelComplete && (
+          <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-5 text-center">
+            <p className="text-3xl mb-1">🏆</p>
+            <p className="font-bold text-amber-800">
+              الطالب أنهى {levelName(level.level_number)} بالكامل — جاهز للاختبار
+            </p>
+            <p className="text-amber-700 text-sm mt-1">
+              يتوقف الجديد والمراجعة حتى يُرصد اختباره.
+            </p>
           </div>
+        )}
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-bold text-slate-600 mb-1">من سورة</label>
-              <select
-                name="startSurah"
-                required
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-emerald-500"
-              >
-                {SURAHS.map((s) => (
-                  <option key={s.number} value={s.number}>
-                    {s.number}. {s.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-slate-600 mb-1">آية</label>
-              <input
-                type="number"
-                name="startAyah"
-                min="1"
-                required
-                defaultValue="1"
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-emerald-500"
-              />
+        {level && state?.pendingDelivery && (
+          <div className="bg-blue-50 border-2 border-blue-300 rounded-xl p-5">
+            <p className="text-center text-3xl mb-1">🔒</p>
+            <p className="font-bold text-blue-900 text-center mb-1">
+              بانتظار تسليم سورة {surahName(state.pendingDelivery)}
+            </p>
+            <p className="text-blue-800 text-sm text-center mb-4">
+              يسمّع السورة كاملة بجلسة واحدة. ما ينفتح الحفظ الجديد إلا بعد اعتمادك.
+            </p>
+            <div className="flex gap-2">
+              <form action={recordDelivery} className="flex-1">
+                <input type="hidden" name="studentId" value={student.id} />
+                <input type="hidden" name="surahNumber" value={state.pendingDelivery} />
+                <input type="hidden" name="approved" value="true" />
+                <button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg py-2.5 transition">
+                  ✅ اعتماد التسليم
+                </button>
+              </form>
+              <form action={recordDelivery} className="flex-1">
+                <input type="hidden" name="studentId" value={student.id} />
+                <input type="hidden" name="surahNumber" value={state.pendingDelivery} />
+                <input type="hidden" name="approved" value="false" />
+                <button className="w-full bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg py-2.5 transition">
+                  ↻ يحتاج إعادة
+                </button>
+              </form>
             </div>
           </div>
+        )}
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-bold text-slate-600 mb-1">إلى سورة</label>
-              <select
-                name="endSurah"
-                required
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-emerald-500"
-              >
-                {SURAHS.map((s) => (
-                  <option key={s.number} value={s.number}>
-                    {s.number}. {s.name}
-                  </option>
-                ))}
-              </select>
+        {level && state && !state.isLevelComplete && !state.pendingDelivery && (
+          <form action={recordSard} className="flex flex-col gap-4">
+            <input type="hidden" name="studentId" value={student.id} />
+
+            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+              <p className="text-sm text-emerald-800 font-bold mb-1">السورة الحالية</p>
+              <p className="text-2xl font-black text-emerald-900">
+                {surahName(state.currentSurah)}
+              </p>
+              <p className="text-emerald-700 text-sm mt-1">
+                السرد يبدأ من آية ١ ({surahAyahCount(state.currentSurah)} آية بالسورة)
+              </p>
             </div>
+
+            {lastRecordNote && (
+              <p className="text-sm text-slate-500 bg-slate-50 border border-slate-200 rounded-lg p-3">
+                ℹ️ {lastRecordNote}
+              </p>
+            )}
+
             <div>
-              <label className="block text-sm font-bold text-slate-600 mb-1">آية</label>
+              <label className="block text-sm font-bold text-slate-600 mb-1">
+                إلى آية رقم
+              </label>
               <input
                 type="number"
                 name="endAyah"
                 min="1"
+                max={surahAyahCount(state.currentSurah)}
                 required
-                defaultValue="1"
+                placeholder="اكتب آخر آية سردها الطالب اليوم"
                 className="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-emerald-500"
               />
             </div>
-          </div>
 
-          <button
-            type="submit"
-            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg py-2.5 transition mt-2"
-          >
-            حفظ السرد
-          </button>
-        </form>
+            <button
+              type="submit"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg py-2.5 transition"
+            >
+              حفظ السرد
+            </button>
+          </form>
+        )}
 
         <a href="/teacher" className="inline-block mt-6 text-emerald-700 font-bold">
           ← رجوع لتحضير اليوم

@@ -2,7 +2,13 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { computeProgress } from '@/lib/quran-progress';
 import { buildQuranIndex } from '@/lib/quran-index';
+import { computeNewMemorizationState } from '@/lib/new-memorization';
+import { SURAHS } from '@/lib/quran-surahs';
 import { requireRole, PAGE_ROLES } from '@/lib/auth';
+
+function surahName(num) {
+  return SURAHS.find((s) => s.number === num)?.name ?? num;
+}
 
 async function markAttendance(formData) {
   'use server';
@@ -43,15 +49,22 @@ export default async function TeacherPage({ searchParams }) {
     supabase.from('attendance').select('student_id, attended, early_arrival').eq('date', today),
     supabase
       .from('student_levels')
-      .select('id, student_id, target_start_surah, target_start_ayah, target_end_surah, target_end_ayah')
+      .select(
+        'id, student_id, level_number, target_start_surah, target_start_ayah, target_end_surah, target_end_ayah'
+      )
       .in('student_id', idsFilter)
-      .order('id', { ascending: true }),
+      .order('level_number', { ascending: true }),
     supabase
       .from('daily_records')
       .select('student_id, type, start_surah, start_ayah, end_surah, end_ayah')
       .in('student_id', idsFilter),
     supabase.from('milestone_log').select('student_id, level_id, milestone_percent').in('student_id', idsFilter),
   ]);
+
+  const { data: deliveries } = await supabase
+    .from('surah_deliveries')
+    .select('student_id, surah_number, approved')
+    .in('student_id', idsFilter);
 
   const attendanceMap = new Map((todayAttendance ?? []).map((a) => [a.student_id, a]));
 
@@ -72,7 +85,31 @@ export default async function TeacherPage({ searchParams }) {
     milestonesMap.get(m.student_id).push(m.milestone_percent);
   }
 
+  const deliveriesMap = new Map();
+  for (const d of deliveries ?? []) {
+    if (!deliveriesMap.has(d.student_id)) deliveriesMap.set(d.student_id, []);
+    deliveriesMap.get(d.student_id).push(d);
+  }
+
   const quranIndex = buildQuranIndex();
+
+  // حالة الجديد لكل طالب: سورته الحالية، وهل فيه سورة تنتظر تسليماً تقفل عليه
+  const newStateMap = new Map();
+  for (const s of students ?? []) {
+    const level = levelMap.get(s.id);
+    if (!level) continue;
+    const newRecords = (recordsMap.get(s.id) ?? []).filter((r) => r.type === 'جديد');
+    newStateMap.set(
+      s.id,
+      computeNewMemorizationState(
+        quranIndex,
+        level,
+        newRecords,
+        deliveriesMap.get(s.id) ?? [],
+        level.level_number
+      )
+    );
+  }
 
   return (
     <div dir="rtl" className="min-h-screen bg-slate-50 p-8">
@@ -108,6 +145,7 @@ export default async function TeacherPage({ searchParams }) {
             const level = levelMap.get(s.id);
             const progress = level ? computeProgress(quranIndex, level, recordsMap.get(s.id) ?? []) : null;
             const achieved = (milestonesMap.get(s.id) ?? []).sort((a, b) => a - b);
+            const newState = newStateMap.get(s.id);
             return (
               <div
                 key={s.id}
@@ -129,11 +167,20 @@ export default async function TeacherPage({ searchParams }) {
                       </div>
                     </div>
                   )}
-                  {achieved.includes(100) && (
+                  {newState?.isLevelComplete ? (
                     <span className="inline-block bg-amber-100 text-amber-800 text-xs font-bold px-2 py-1 rounded-full mt-1">
                       🏆 جاهز للاختبار
                     </span>
-                  )}
+                  ) : newState?.pendingDelivery ? (
+                    <span className="inline-block bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded-full mt-1">
+                      🔒 بانتظار تسليم {surahName(newState.pendingDelivery)}
+                    </span>
+                  ) : newState?.currentSurah ? (
+                    <span className="inline-block text-xs text-slate-500 mt-1">
+                      السورة الحالية: {surahName(newState.currentSurah)}
+                      {newState.lastAyahReached > 0 && ` — آية ${newState.lastAyahReached}`}
+                    </span>
+                  ) : null}
                   {achieved.length > 0 && (
                     <div className="flex gap-1 mt-1">
                       {achieved
@@ -191,9 +238,13 @@ export default async function TeacherPage({ searchParams }) {
                   </form>
                   <a
                     href={`/teacher/sard?studentId=${s.id}`}
-                    className="px-4 py-1.5 rounded-lg font-bold text-sm bg-blue-50 text-blue-700 hover:bg-blue-100 transition"
+                    className={`px-4 py-1.5 rounded-lg font-bold text-sm transition ${
+                      newState?.pendingDelivery
+                        ? 'bg-blue-600 text-white hover:bg-blue-700'
+                        : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                    }`}
                   >
-                    تسجيل سرد
+                    {newState?.pendingDelivery ? 'تسليم السورة' : 'تسجيل الجديد'}
                   </a>
                 </div>
               </div>

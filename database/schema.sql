@@ -93,6 +93,18 @@ create table exam_results (
   created_at timestamptz default now()
 );
 
+-- 7ج) تسليم السور — كل محاولة تسليم صف مستقل (تدعم إعادة التسليم بعد الخطأ)
+-- الطالب لا ينتقل للسورة التالية في الجديد إلا بوجود صف approved = true لسورته
+-- المكتملة. تنطبق من المستوى الثاني فما فوق.
+create table surah_deliveries (
+  id serial primary key,
+  student_id int references students(id) not null,
+  surah_number int not null,
+  delivered_at date not null,
+  approved boolean not null default false,
+  created_at timestamptz default now()
+);
+
 -- 8) تذاكر الترفيه الأسبوعية — وثيقة رسمية مُصدرة، لا تُعاد حسابها لاحقاً
 create table weekly_tickets (
   id serial primary key,
