@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { computeProgress } from '@/lib/quran-progress';
 import { buildQuranIndex } from '@/lib/quran-index';
+import QuranEngine from '@/lib/quranEngine';
 import ScreenRotator from './ScreenRotator';
 
 export default async function ScreenPage() {
@@ -30,7 +31,7 @@ export default async function ScreenPage() {
       .in('student_id', idsFilter),
     supabase
       .from('daily_records')
-      .select('student_id, start_surah, start_ayah, end_surah, end_ayah')
+      .select('student_id, date, start_surah, start_ayah, end_surah, end_ayah')
       .in('student_id', idsFilter),
   ]);
 
@@ -55,9 +56,52 @@ export default async function ScreenPage() {
       }),
   }));
 
+  // فرسان اليوم: أعلى 3 طلاب حسب عدد الآيات المسجّلة اليوم فقط (بلا تكرار لو فيه تسجيلات متداخلة)
+  const today = new Date().toISOString().slice(0, 10);
+  const studentMap = new Map((students ?? []).map((s) => [s.id, s]));
+  const halaqahNameMap = new Map((halaqatRows ?? []).map((h) => [h.id, h.name]));
+
+  const todayRecordsByStudent = new Map();
+  for (const r of allRecords ?? []) {
+    if (r.date !== today) continue;
+    if (!todayRecordsByStudent.has(r.student_id)) todayRecordsByStudent.set(r.student_id, []);
+    todayRecordsByStudent.get(r.student_id).push(r);
+  }
+
+  const champions = [];
+  for (const [studentId, records] of todayRecordsByStudent.entries()) {
+    const state = QuranEngine.createCoverageState();
+    for (const r of records) {
+      const { ayahsToProcess } = QuranEngine.calculateRangeStats(
+        quranIndex,
+        r.start_surah,
+        r.start_ayah,
+        r.end_surah,
+        r.end_ayah
+      );
+      QuranEngine.recordCoverage(state, 'اليوم', ayahsToProcess);
+    }
+    const ayahsToday = (state.coverage['اليوم'] || []).length;
+    const student = studentMap.get(studentId);
+    if (ayahsToday === 0 || !student) continue;
+    champions.push({
+      id: studentId,
+      name: student.name,
+      halaqahName: halaqahNameMap.get(student.halaqah_id) ?? '',
+      ayahsToday,
+    });
+  }
+  champions.sort((a, b) => b.ayahsToday - a.ayahsToday);
+  const topChampions = champions.slice(0, 3);
+
+  const slides = [
+    ...(topChampions.length > 0 ? [{ type: 'champions', champions: topChampions }] : []),
+    ...halaqat.map((h) => ({ type: 'halaqa', ...h })),
+  ];
+
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center p-10" dir="rtl">
-      <ScreenRotator halaqat={halaqat} />
+      <ScreenRotator slides={slides} />
     </div>
   );
 }
