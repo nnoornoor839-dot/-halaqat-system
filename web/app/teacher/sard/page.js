@@ -262,7 +262,8 @@ export default async function SardPage({ searchParams }) {
           </div>
         )}
 
-        {level && !exam && state?.isLevelComplete && (
+        {/* التسليم أولاً: الطالب ما يُعد جاهزاً للاختبار وعنده سورة لم تُسلَّم بعد */}
+        {level && !exam && !state?.pendingDelivery && state?.isLevelComplete && (
           <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-5 text-center">
             <p className="text-3xl mb-1">🏆</p>
             <p className="font-bold text-amber-800">
@@ -274,7 +275,7 @@ export default async function SardPage({ searchParams }) {
           </div>
         )}
 
-        {level && state?.pendingDelivery && (
+        {level && !exam && state?.pendingDelivery && (
           <div className="bg-blue-50 border-2 border-blue-300 rounded-xl p-5">
             <p className="text-center text-3xl mb-1">🔒</p>
             <p className="font-bold text-blue-900 text-center mb-1">

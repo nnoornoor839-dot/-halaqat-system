@@ -187,13 +187,13 @@ export default async function TeacherPage({ searchParams }) {
                       ⏳ بانتظار إعادة الاختبار
                       {exam.retry_date ? ` — ${exam.retry_date}` : ''}
                     </span>
-                  ) : newState?.isLevelComplete ? (
-                    <span className="inline-block bg-amber-100 text-amber-800 text-xs font-bold px-2 py-1 rounded-full mt-1">
-                      🏆 جاهز للاختبار
-                    </span>
                   ) : newState?.pendingDelivery ? (
                     <span className="inline-block bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded-full mt-1">
                       🔒 بانتظار تسليم {surahName(newState.pendingDelivery)}
+                    </span>
+                  ) : newState?.isLevelComplete ? (
+                    <span className="inline-block bg-amber-100 text-amber-800 text-xs font-bold px-2 py-1 rounded-full mt-1">
+                      🏆 جاهز للاختبار
                     </span>
                   ) : newState?.currentSurah ? (
                     <span className="inline-block text-xs text-slate-500 mt-1">
@@ -256,16 +256,20 @@ export default async function TeacherPage({ searchParams }) {
                       غائب
                     </button>
                   </form>
-                  <a
-                    href={`/teacher/sard?studentId=${s.id}`}
-                    className={`px-4 py-1.5 rounded-lg font-bold text-sm transition ${
-                      newState?.pendingDelivery
-                        ? 'bg-blue-600 text-white hover:bg-blue-700'
-                        : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
-                    }`}
-                  >
-                    {newState?.pendingDelivery ? 'تسليم السورة' : 'تسجيل الجديد'}
-                  </a>
+                  {/* الزر يظهر فقط لما يكون فيه إجراء فعلي للمعلم: تسليم سورة أو
+                      تسجيل جديد. بعد رصد الاختبار الأمر بيد المشرف لا المعلم. */}
+                  {!exam && (newState?.pendingDelivery || newState?.currentSurah) && (
+                    <a
+                      href={`/teacher/sard?studentId=${s.id}`}
+                      className={`px-4 py-1.5 rounded-lg font-bold text-sm transition ${
+                        newState?.pendingDelivery
+                          ? 'bg-blue-600 text-white hover:bg-blue-700'
+                          : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                      }`}
+                    >
+                      {newState?.pendingDelivery ? 'تسليم السورة' : 'تسجيل الجديد'}
+                    </a>
+                  )}
                 </div>
               </div>
             );
