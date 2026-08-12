@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { SURAHS } from '@/lib/quran-surahs';
 import { computeProgress } from '@/lib/quran-progress';
 import { buildQuranIndex } from '@/lib/quran-index';
+import { levelName } from '@/lib/level-name';
 
 function surahName(num) {
   return SURAHS.find((s) => s.number === num)?.name ?? num;
@@ -30,44 +31,54 @@ export default async function LevelsPage() {
   const [{ data: levels }, { data: allRecords }] = await Promise.all([
     supabase
       .from('student_levels')
-      .select('id, student_id, semester, target_start_surah, target_start_ayah, target_end_surah, target_end_ayah')
+      .select(
+        'id, student_id, level_number, semester, target_start_surah, target_start_ayah, target_end_surah, target_end_ayah'
+      )
       .in('student_id', idsFilter)
-      .order('id', { ascending: true }),
+      .order('level_number', { ascending: true }),
     supabase
       .from('daily_records')
       .select('student_id, type, start_surah, start_ayah, end_surah, end_ayah')
       .in('student_id', idsFilter),
   ]);
 
-  // آخر صف لكل طالب هو هدفه الحالي
-  const levelMap = new Map((levels ?? []).map((l) => [l.student_id, l]));
+  // مستويات كل طالب مرتّبة: الأخير هو مستواه الحالي، والباقي سجلّه السابق
+  const levelsByStudent = new Map();
+  for (const l of levels ?? []) {
+    if (!levelsByStudent.has(l.student_id)) levelsByStudent.set(l.student_id, []);
+    levelsByStudent.get(l.student_id).push(l);
+  }
+
   const recordsMap = new Map();
   for (const r of allRecords ?? []) {
     if (!recordsMap.has(r.student_id)) recordsMap.set(r.student_id, []);
     recordsMap.get(r.student_id).push(r);
   }
 
-  const currentLevelIds = [...levelMap.values()].map((l) => l.id);
-  const idsFilterLevels = currentLevelIds.length ? currentLevelIds : [-1];
-
+  const allLevelIds = (levels ?? []).map((l) => l.id);
   const { data: examRows } = await supabase
     .from('exam_results')
     .select('id, level_id, exam_date, score, grade, passed, retry_date')
-    .in('level_id', idsFilterLevels)
+    .in('level_id', allLevelIds.length ? allLevelIds : [-1])
     .order('id', { ascending: true });
 
-  const examByLevel = new Map((examRows ?? []).map((e) => [e.level_id, e])); // آخر محاولة تفوز (ترتيب تصاعدي)
+  // آخر محاولة لكل مستوى هي المعتمدة (الترتيب تصاعدي، فالأخيرة تفوز)
+  const examByLevel = new Map((examRows ?? []).map((e) => [e.level_id, e]));
 
   const quranIndex = buildQuranIndex();
 
   const rows = (students ?? []).map((s) => {
-    const level = levelMap.get(s.id);
-    const progress = level ? computeProgress(quranIndex, level, recordsMap.get(s.id) ?? []) : null;
-    const exam = level ? examByLevel.get(level.id) : null;
+    const studentLevels = levelsByStudent.get(s.id) ?? [];
+    const current = studentLevels[studentLevels.length - 1] ?? null;
+    const past = studentLevels.slice(0, -1);
+    const progress = current
+      ? computeProgress(quranIndex, current, recordsMap.get(s.id) ?? [])
+      : null;
+    const exam = current ? examByLevel.get(current.id) : null;
 
     let status;
-    if (!level) {
-      status = { key: 'none', label: 'ما فيه هدف محدد', color: 'text-slate-400' };
+    if (!current) {
+      status = { key: 'none', label: 'ما فيه مستوى بعد', color: 'text-slate-400' };
     } else if (exam?.passed) {
       status = { key: 'passed', label: `✅ ناجح — ${exam.grade}`, color: 'text-emerald-700 font-bold' };
     } else if (exam && !exam.passed) {
@@ -82,14 +93,16 @@ export default async function LevelsPage() {
       status = { key: 'progress', label: 'قيد التقدم', color: 'text-slate-500' };
     }
 
-    return { student: s, level, progress, exam, status };
+    return { student: s, current, past, progress, exam, status };
   });
 
   return (
     <div dir="rtl" className="min-h-screen bg-slate-50 p-8">
-      <div className="max-w-5xl mx-auto bg-white rounded-2xl shadow-md border border-slate-200 p-8">
+      <div className="max-w-6xl mx-auto bg-white rounded-2xl shadow-md border border-slate-200 p-8">
         <h1 className="text-2xl font-bold text-slate-800 mb-1">إدارة المستويات والاختبارات</h1>
-        <p className="text-slate-500 mb-6">تعيين الأهداف، ورصد نتائج اختبارات نهاية المستوى</p>
+        <p className="text-slate-500 mb-6">
+          تعيين المستويات، ورصد نتائج الاختبارات، وتسجيل مستويات الطلاب المنتقلين
+        </p>
 
         <div className="overflow-x-auto">
           <table className="w-full text-right border-collapse">
@@ -97,23 +110,45 @@ export default async function LevelsPage() {
               <tr className="border-b-2 border-slate-200 text-slate-600 text-sm">
                 <th className="py-2 px-2">الطالب</th>
                 <th className="py-2 px-2">الحلقة</th>
-                <th className="py-2 px-2">الهدف الحالي</th>
+                <th className="py-2 px-2">المستوى الحالي</th>
                 <th className="py-2 px-2">التقدم</th>
                 <th className="py-2 px-2">الحالة</th>
                 <th className="py-2 px-2">إجراء</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map(({ student: s, level, progress, exam, status }) => (
-                <tr key={s.id} className="border-b border-slate-100">
-                  <td className="py-3 px-2 font-bold text-slate-700">{s.name}</td>
+              {rows.map(({ student: s, current, past, progress, exam, status }) => (
+                <tr key={s.id} className="border-b border-slate-100 align-top">
+                  <td className="py-3 px-2">
+                    <div className="font-bold text-slate-700">{s.name}</div>
+                    {past.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {past.map((p) => {
+                          const pe = examByLevel.get(p.id);
+                          return (
+                            <span
+                              key={p.id}
+                              title={`${levelName(p.level_number)}${pe ? ` — ${pe.grade}` : ''}`}
+                              className="text-[11px] bg-slate-100 text-slate-500 rounded px-1.5 py-0.5"
+                            >
+                              {p.level_number}
+                              {pe?.passed ? ' ✅' : ''}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </td>
                   <td className="py-3 px-2 text-slate-500">{s.halaqat?.name ?? '—'}</td>
                   <td className="py-3 px-2 text-slate-600 text-sm">
-                    {level ? (
+                    {current ? (
                       <>
-                        {level.semester && <div className="text-xs text-slate-400">{level.semester}</div>}
-                        من {surahName(level.target_start_surah)}:{level.target_start_ayah} إلى{' '}
-                        {surahName(level.target_end_surah)}:{level.target_end_ayah}
+                        <div className="font-bold text-slate-700">{levelName(current.level_number)}</div>
+                        {current.semester && (
+                          <div className="text-xs text-slate-400">{current.semester}</div>
+                        )}
+                        من {surahName(current.target_start_surah)}:{current.target_start_ayah} إلى{' '}
+                        {surahName(current.target_end_surah)}:{current.target_end_ayah}
                       </>
                     ) : (
                       '—'
@@ -123,9 +158,9 @@ export default async function LevelsPage() {
                   <td className={`py-3 px-2 text-sm ${status.color}`}>{status.label}</td>
                   <td className="py-3 px-2">
                     <div className="flex flex-wrap gap-2">
-                      {(status.key === 'ready' || status.key === 'failed') && level && (
+                      {(status.key === 'ready' || status.key === 'failed') && current && (
                         <a
-                          href={`/levels/exam?levelId=${level.id}`}
+                          href={`/levels/exam?levelId=${current.id}`}
                           className="text-xs font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg px-3 py-1.5 transition"
                         >
                           تسجيل نتيجة اختبار
@@ -143,7 +178,13 @@ export default async function LevelsPage() {
                         href={`/levels/assign?studentId=${s.id}`}
                         className="text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-lg px-3 py-1.5 transition"
                       >
-                        {level ? 'تعيين هدف جديد' : 'تعيين هدف'}
+                        {current ? 'تعيين المستوى التالي' : 'تعيين المستوى'}
+                      </a>
+                      <a
+                        href={`/levels/assign?studentId=${s.id}&mode=historical`}
+                        className="text-xs font-bold bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-lg px-3 py-1.5 transition"
+                      >
+                        تسجيل مستوى سابق
                       </a>
                     </div>
                   </td>
@@ -161,7 +202,12 @@ export default async function LevelsPage() {
           </table>
         </div>
 
-        <a href="/dashboard" className="inline-block mt-8 text-emerald-700 font-bold">
+        <p className="text-xs text-slate-400 mt-6 leading-relaxed">
+          للطالب المنتقل: سجّل مستوياته السابقة بالترتيب أولاً (كل واحد بدرجته)، ثم عيّن مستواه
+          الحالي. النظام يرقّم المستويات تلقائياً حسب ترتيب تسجيلها.
+        </p>
+
+        <a href="/dashboard" className="inline-block mt-6 text-emerald-700 font-bold">
           ← رجوع للوحة التحكم
         </a>
       </div>

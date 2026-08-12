@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { SURAHS } from '@/lib/quran-surahs';
+import { levelName } from '@/lib/level-name';
 import PrintButton from './PrintButton';
 
 const ASSOCIATION_NAME = '[اسم الجمعية]';
@@ -39,7 +40,9 @@ export default async function CertificatePage({ searchParams }) {
 
   const { data: level } = await supabase
     .from('student_levels')
-    .select('id, student_id, semester, target_start_surah, target_start_ayah, target_end_surah, target_end_ayah')
+    .select(
+      'id, student_id, level_number, semester, target_start_surah, target_start_ayah, target_end_surah, target_end_ayah'
+    )
     .eq('id', exam.level_id)
     .single();
 
@@ -74,7 +77,9 @@ export default async function CertificatePage({ searchParams }) {
       <div className="max-w-2xl mx-auto bg-white shadow-md border border-slate-300 p-10 print:shadow-none print:border-0 text-center">
         <div className="border-b-4 border-slate-800 pb-4 mb-8">
           <h1 className="text-2xl font-black text-slate-800">{ASSOCIATION_NAME}</h1>
-          <p className="text-slate-500 mt-1">شهادة اجتياز مستوى تحفيظ</p>
+          <p className="text-slate-500 mt-1">
+            شهادة اجتياز {levelName(level.level_number)}
+          </p>
         </div>
 
         <p className="text-lg text-slate-600 mb-2">تشهد إدارة الجمعية بأن الطالب</p>

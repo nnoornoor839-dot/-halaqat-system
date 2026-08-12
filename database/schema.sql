@@ -56,9 +56,12 @@ create table daily_records (
 -- 6) المستوى المستهدف لكل طالب/فصل
 -- نخزّن الهدف نفسه فقط — نسبة التقدم تُحسب لحظياً من daily_records،
 -- لا تُخزَّن أبداً (تجنّباً لتكرار خطأ "المهرة" بأرقام تفقد ارتباطها بالواقع).
+-- level_number يحدده النظام تلقائياً حسب ترتيب مستويات الطالب (الأول، الثاني، …).
+-- يُستخدم لتحديد حجم وحدة المراجعة، ولتحديد متى تنطبق بوابة تسليم السورة.
 create table student_levels (
   id serial primary key,
   student_id int references students(id) not null,
+  level_number int,
   semester text not null,
   target_start_surah int not null,
   target_start_ayah int not null,
