@@ -66,6 +66,16 @@ export default async function TeacherPage({ searchParams }) {
     .select('student_id, surah_number, approved')
     .in('student_id', idsFilter);
 
+  // نحتاج نتائج الاختبارات حتى نميّز بين "أنهى مستواه وينتظر اختباره" وبين
+  // "اختبر ونجح فعلاً وينتظر مستواه التالي" — الحالتان تبدوان متطابقتين بلا هذا.
+  const levelIds = (levels ?? []).map((l) => l.id);
+  const { data: examRows } = await supabase
+    .from('exam_results')
+    .select('level_id, passed, grade, retry_date')
+    .in('level_id', levelIds.length ? levelIds : [-1])
+    .order('id', { ascending: true });
+  const examByLevel = new Map((examRows ?? []).map((e) => [e.level_id, e]));
+
   const attendanceMap = new Map((todayAttendance ?? []).map((a) => [a.student_id, a]));
 
   // آخر صف لكل طالب بجدول student_levels هو "هدفه الحالي" (لو تغيّر هدفه أكثر من مرة)
@@ -146,6 +156,7 @@ export default async function TeacherPage({ searchParams }) {
             const progress = level ? computeProgress(quranIndex, level, recordsMap.get(s.id) ?? []) : null;
             const achieved = (milestonesMap.get(s.id) ?? []).sort((a, b) => a - b);
             const newState = newStateMap.get(s.id);
+            const exam = level ? examByLevel.get(level.id) : null;
             return (
               <div
                 key={s.id}
@@ -167,7 +178,16 @@ export default async function TeacherPage({ searchParams }) {
                       </div>
                     </div>
                   )}
-                  {newState?.isLevelComplete ? (
+                  {exam?.passed ? (
+                    <span className="inline-block bg-emerald-100 text-emerald-800 text-xs font-bold px-2 py-1 rounded-full mt-1">
+                      ✅ أنهى مستواه — بانتظار المستوى التالي
+                    </span>
+                  ) : exam && !exam.passed ? (
+                    <span className="inline-block bg-red-100 text-red-800 text-xs font-bold px-2 py-1 rounded-full mt-1">
+                      ⏳ بانتظار إعادة الاختبار
+                      {exam.retry_date ? ` — ${exam.retry_date}` : ''}
+                    </span>
+                  ) : newState?.isLevelComplete ? (
                     <span className="inline-block bg-amber-100 text-amber-800 text-xs font-bold px-2 py-1 rounded-full mt-1">
                       🏆 جاهز للاختبار
                     </span>

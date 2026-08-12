@@ -48,7 +48,18 @@ async function loadState(supabase, studentId) {
     ? computeNewMemorizationState(index, level, newRecords, deliveries ?? [], level.level_number)
     : null;
 
-  return { student, level, records, newRecords, deliveries: deliveries ?? [], index, state };
+  // آخر محاولة اختبار لهذا المستوى — تميّز "أنهى وينتظر الاختبار" عن "اختبر ونجح"
+  let exam = null;
+  if (level) {
+    const { data: examRows } = await supabase
+      .from('exam_results')
+      .select('passed, grade, retry_date')
+      .eq('level_id', level.id)
+      .order('id', { ascending: true });
+    exam = (examRows ?? [])[examRows?.length ? examRows.length - 1 : 0] ?? null;
+  }
+
+  return { student, level, records, newRecords, deliveries: deliveries ?? [], index, state, exam };
 }
 
 async function recordSard(formData) {
@@ -59,10 +70,15 @@ async function recordSard(formData) {
   const back = `/teacher/sard?studentId=${studentId}`;
 
   const { supabase } = await requireRole(PAGE_ROLES.sard);
-  const { level, newRecords, index, state } = await loadState(supabase, studentId);
+  const { level, newRecords, index, state, exam } = await loadState(supabase, studentId);
 
   if (!level || !state) {
     redirect(`${back}&error=${encodeURIComponent('ما فيه مستوى محدد لهذا الطالب')}`);
+  }
+  if (exam) {
+    redirect(
+      `${back}&error=${encodeURIComponent('هذا المستوى اختُبر فعلاً — ينتظر المشرف يعيّن المستوى التالي')}`
+    );
   }
   // البوابة تُطبَّق هنا لا في الواجهة فقط، فالإجراء نقطة وصول مستقلة
   if (state.pendingDelivery) {
@@ -163,7 +179,7 @@ export default async function SardPage({ searchParams }) {
     redirect('/teacher');
   }
 
-  const { student, level, records, state } = await loadState(supabase, studentId);
+  const { student, level, records, state, exam } = await loadState(supabase, studentId);
 
   if (!student) {
     redirect('/teacher');
@@ -224,7 +240,29 @@ export default async function SardPage({ searchParams }) {
           </p>
         )}
 
-        {level && state?.isLevelComplete && (
+        {level && exam?.passed && (
+          <div className="bg-emerald-50 border-2 border-emerald-300 rounded-xl p-5 text-center">
+            <p className="text-3xl mb-1">✅</p>
+            <p className="font-bold text-emerald-800">
+              الطالب اجتاز {levelName(level.level_number)} بتقدير {exam.grade}
+            </p>
+            <p className="text-emerald-700 text-sm mt-1">
+              ينتظر المشرف يعيّن له المستوى التالي حتى يكمل الحفظ الجديد.
+            </p>
+          </div>
+        )}
+
+        {level && exam && !exam.passed && (
+          <div className="bg-red-50 border-2 border-red-300 rounded-xl p-5 text-center">
+            <p className="text-3xl mb-1">⏳</p>
+            <p className="font-bold text-red-800">بانتظار إعادة اختبار {levelName(level.level_number)}</p>
+            {exam.retry_date && (
+              <p className="text-red-700 text-sm mt-1">موعد الإعادة: {exam.retry_date}</p>
+            )}
+          </div>
+        )}
+
+        {level && !exam && state?.isLevelComplete && (
           <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-5 text-center">
             <p className="text-3xl mb-1">🏆</p>
             <p className="font-bold text-amber-800">
@@ -266,7 +304,7 @@ export default async function SardPage({ searchParams }) {
           </div>
         )}
 
-        {level && state && !state.isLevelComplete && !state.pendingDelivery && (
+        {level && state && !exam && !state.isLevelComplete && !state.pendingDelivery && (
           <form action={recordSard} className="flex flex-col gap-4">
             <input type="hidden" name="studentId" value={student.id} />
 
