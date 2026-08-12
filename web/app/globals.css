@@ -1,26 +1,37 @@
 @import "tailwindcss";
 
+/* ألوان الجمعية — مستخرجة من بكسلات الشعار نفسه لا بالتقدير:
+   الأخضر #005327 لون الشعار الأساسي، والذهبي #C6AA40 لمسات التمييز.
+   بقية الدرجات مشتقة منهما لتغطية الخلفيات الفاتحة وحالات التمرير. */
+@theme {
+  --color-brand-50: #eaf3ee;
+  --color-brand-100: #cbe2d5;
+  --color-brand-200: #a3ccb4;
+  --color-brand-300: #6faa88;
+  --color-brand-400: #2f7d51;
+  --color-brand-500: #016434;
+  --color-brand-600: #005327;
+  --color-brand-700: #00411e;
+  --color-brand-800: #003118;
+  --color-brand-900: #002211;
+
+  --color-gold-50: #faf6e8;
+  --color-gold-100: #f2e9c8;
+  --color-gold-200: #e5d59a;
+  --color-gold-400: #d2bb5c;
+  --color-gold-500: #c6aa40;
+  --color-gold-600: #a68d31;
+  --color-gold-700: #806c26;
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  /* الخطوط العربية أولاً — الافتراضي السابق (Arial) يعرض العربية بشكل رديء */
+  font-family: "Segoe UI", "Noto Sans Arabic", "Dubai", Tahoma, system-ui, sans-serif;
 }

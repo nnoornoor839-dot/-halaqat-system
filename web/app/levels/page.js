@@ -77,7 +77,7 @@ export default async function LevelsPage() {
     if (!current) {
       status = { key: 'none', label: 'ما فيه مستوى بعد', color: 'text-slate-400' };
     } else if (exam?.passed) {
-      status = { key: 'passed', label: `✅ ناجح — ${exam.grade}`, color: 'text-emerald-700 font-bold' };
+      status = { key: 'passed', label: `✅ ناجح — ${exam.grade}`, color: 'text-brand-700 font-bold' };
     } else if (exam && !exam.passed) {
       status = {
         key: 'failed',
@@ -198,7 +198,7 @@ export default async function LevelsPage() {
                       {status.key === 'passed' && exam && (
                         <a
                           href={`/levels/certificate?examId=${exam.id}`}
-                          className="text-xs font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg px-3 py-1.5 transition"
+                          className="text-xs font-bold bg-brand-50 text-brand-700 hover:bg-brand-100 rounded-lg px-3 py-1.5 transition"
                         >
                           عرض الشهادة
                         </a>
@@ -236,7 +236,7 @@ export default async function LevelsPage() {
           الحالي. النظام يرقّم المستويات تلقائياً حسب ترتيب تسجيلها.
         </p>
 
-        <a href="/dashboard" className="inline-block mt-6 text-emerald-700 font-bold">
+        <a href="/dashboard" className="inline-block mt-6 text-brand-700 font-bold">
           ← رجوع للوحة التحكم
         </a>
       </div>

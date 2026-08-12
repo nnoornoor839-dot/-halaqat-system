@@ -241,12 +241,12 @@ export default async function SardPage({ searchParams }) {
         )}
 
         {level && exam?.passed && (
-          <div className="bg-emerald-50 border-2 border-emerald-300 rounded-xl p-5 text-center">
+          <div className="bg-brand-50 border-2 border-brand-300 rounded-xl p-5 text-center">
             <p className="text-3xl mb-1">✅</p>
-            <p className="font-bold text-emerald-800">
+            <p className="font-bold text-brand-800">
               الطالب اجتاز {levelName(level.level_number)} بتقدير {exam.grade}
             </p>
-            <p className="text-emerald-700 text-sm mt-1">
+            <p className="text-brand-700 text-sm mt-1">
               ينتظر المشرف يعيّن له المستوى التالي حتى يكمل الحفظ الجديد.
             </p>
           </div>
@@ -289,7 +289,7 @@ export default async function SardPage({ searchParams }) {
                 <input type="hidden" name="studentId" value={student.id} />
                 <input type="hidden" name="surahNumber" value={state.pendingDelivery} />
                 <input type="hidden" name="approved" value="true" />
-                <button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg py-2.5 transition">
+                <button className="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-lg py-2.5 transition">
                   ✅ اعتماد التسليم
                 </button>
               </form>
@@ -309,12 +309,12 @@ export default async function SardPage({ searchParams }) {
           <form action={recordSard} className="flex flex-col gap-4">
             <input type="hidden" name="studentId" value={student.id} />
 
-            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
-              <p className="text-sm text-emerald-800 font-bold mb-1">السورة الحالية</p>
-              <p className="text-2xl font-black text-emerald-900">
+            <div className="bg-brand-50 border border-brand-200 rounded-xl p-4">
+              <p className="text-sm text-brand-800 font-bold mb-1">السورة الحالية</p>
+              <p className="text-2xl font-black text-brand-900">
                 {surahName(state.currentSurah)}
               </p>
-              <p className="text-emerald-700 text-sm mt-1">
+              <p className="text-brand-700 text-sm mt-1">
                 السرد يبدأ من آية ١ ({surahAyahCount(state.currentSurah)} آية بالسورة)
               </p>
             </div>
@@ -336,20 +336,20 @@ export default async function SardPage({ searchParams }) {
                 max={surahAyahCount(state.currentSurah)}
                 required
                 placeholder="اكتب آخر آية سردها الطالب اليوم"
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-emerald-500"
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-brand-500"
               />
             </div>
 
             <button
               type="submit"
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg py-2.5 transition"
+              className="bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-lg py-2.5 transition"
             >
               حفظ السرد
             </button>
           </form>
         )}
 
-        <a href="/teacher" className="inline-block mt-6 text-emerald-700 font-bold">
+        <a href="/teacher" className="inline-block mt-6 text-brand-700 font-bold">
           ← رجوع لتحضير اليوم
         </a>
       </div>

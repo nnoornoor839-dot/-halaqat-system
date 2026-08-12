@@ -32,7 +32,7 @@ export default function ScreenRotator({ slides }) {
           {slides.map((_, i) => (
             <span
               key={i}
-              className={`w-3 h-3 rounded-full ${i === index ? 'bg-emerald-400' : 'bg-slate-600'}`}
+              className={`w-3 h-3 rounded-full ${i === index ? 'bg-brand-400' : 'bg-slate-600'}`}
             />
           ))}
         </div>
@@ -71,7 +71,7 @@ export default function ScreenRotator({ slides }) {
                 </div>
                 <div className="h-4 bg-slate-700 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-emerald-500 transition-all duration-700"
+                    className="h-full bg-brand-500 transition-all duration-700"
                     style={{ width: `${s.progress ?? 0}%` }}
                   />
                 </div>

@@ -54,7 +54,7 @@ export default async function FinancePage() {
             هذي الميزة مصممة حالياً لحساب المشرف (المرتبط بفرع محدد). سجّل دخول بحساب مشرف
             لاستخدامها.
           </p>
-          <a href="/dashboard" className="inline-block mt-6 text-emerald-700 font-bold">
+          <a href="/dashboard" className="inline-block mt-6 text-brand-700 font-bold">
             ← رجوع للوحة التحكم
           </a>
         </div>
@@ -95,7 +95,7 @@ export default async function FinancePage() {
         <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-6">
           <p className="text-lg">
             <span className="font-bold text-slate-600">عدد المستحقين لتذاكر الترفيه: </span>
-            <span className="font-black text-emerald-700">{ticketCount}</span>
+            <span className="font-black text-brand-700">{ticketCount}</span>
           </p>
         </div>
 
@@ -127,20 +127,20 @@ export default async function FinancePage() {
                 min="0"
                 step="0.01"
                 required
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-emerald-500"
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-brand-500"
               />
             </div>
 
             <button
               type="submit"
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg py-2.5 transition"
+              className="bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-lg py-2.5 transition"
             >
               توليد خطاب الاعتماد المالي
             </button>
           </form>
         )}
 
-        <a href="/dashboard" className="inline-block mt-8 text-emerald-700 font-bold">
+        <a href="/dashboard" className="inline-block mt-8 text-brand-700 font-bold">
           ← رجوع للوحة التحكم
         </a>
       </div>

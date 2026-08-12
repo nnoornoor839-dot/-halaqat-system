@@ -90,7 +90,7 @@ export default async function ExecutivePage() {
     {
       label: 'إجمالي الآيات المحفوظة',
       value: totalAyahs.toLocaleString('en-US'),
-      color: 'text-emerald-700 bg-emerald-50',
+      color: 'text-brand-700 bg-brand-50',
     },
     {
       label: 'إجمالي الصفحات المكتملة',
@@ -135,7 +135,7 @@ export default async function ExecutivePage() {
           ))}
         </div>
 
-        <a href="/dashboard" className="inline-block mt-8 text-emerald-700 font-bold">
+        <a href="/dashboard" className="inline-block mt-8 text-brand-700 font-bold">
           ← رجوع للوحة التحكم
         </a>
       </div>

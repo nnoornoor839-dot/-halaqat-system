@@ -113,7 +113,7 @@ ${ASSOCIATION_NAME}`;
                     href={notifyLink(item.table, item.id, item.student.parent_phone, item.text)}
                     target="_blank"
                     rel="noreferrer"
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-lg px-4 py-2 transition"
+                    className="bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm rounded-lg px-4 py-2 transition"
                   >
                     إرسال واتساب
                   </a>
@@ -129,7 +129,7 @@ ${ASSOCIATION_NAME}`;
           )}
         </div>
 
-        <a href="/dashboard" className="inline-block mt-8 text-emerald-700 font-bold">
+        <a href="/dashboard" className="inline-block mt-8 text-brand-700 font-bold">
           ← رجوع للوحة التحكم
         </a>
       </div>

@@ -150,7 +150,7 @@ export default async function OverviewPage() {
       : att.attended && att.early_arrival
         ? { text: 'حاضر مبكراً', color: 'text-amber-600' }
         : att.attended
-          ? { text: 'حاضر', color: 'text-emerald-600' }
+          ? { text: 'حاضر', color: 'text-brand-600' }
           : { text: 'غائب', color: 'text-red-600' };
 
     const flags = [];
@@ -213,7 +213,7 @@ export default async function OverviewPage() {
                   <td className="py-2.5 px-2 text-slate-500">
                     {level ? levelName(level.level_number) : '—'}
                     {exam?.passed && (
-                      <span className="text-emerald-600 text-xs"> · {exam.grade}</span>
+                      <span className="text-brand-600 text-xs"> · {exam.grade}</span>
                     )}
                   </td>
                   <td className="py-2.5 px-2">
@@ -221,7 +221,7 @@ export default async function OverviewPage() {
                       <div className="flex items-center gap-2 min-w-24">
                         <div className="h-1.5 w-16 bg-slate-100 rounded-full overflow-hidden">
                           <div
-                            className="h-full bg-emerald-500"
+                            className="h-full bg-brand-500"
                             style={{ width: `${progress.percent}%` }}
                           />
                         </div>
@@ -259,7 +259,7 @@ export default async function OverviewPage() {
           </table>
         </div>
 
-        <a href="/dashboard" className="inline-block mt-8 text-emerald-700 font-bold">
+        <a href="/dashboard" className="inline-block mt-8 text-brand-700 font-bold">
           ← رجوع للوحة التحكم
         </a>
       </div>

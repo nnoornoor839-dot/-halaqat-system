@@ -203,11 +203,11 @@ export default async function ReviewPage({ searchParams }) {
                           <p className="text-sm text-slate-400 mt-1">ما فيه محفوظ للمراجعة بعد</p>
                         ) : portion ? (
                           <p className="text-sm text-slate-600 mt-1">
-                            <span className="font-bold text-emerald-700">
+                            <span className="font-bold text-brand-700">
                               {surahName(portion.fromSurah)}:{portion.fromAyah}
                             </span>
                             {' → '}
-                            <span className="font-bold text-emerald-700">
+                            <span className="font-bold text-brand-700">
                               {surahName(portion.toSurah)}:{portion.toAyah}
                             </span>
                             <span className="text-slate-400">
@@ -221,11 +221,11 @@ export default async function ReviewPage({ searchParams }) {
 
                       <div className="shrink-0">
                         {doneToday ? (
-                          <span className="text-emerald-700 font-bold text-sm">✅ سُمعت اليوم</span>
+                          <span className="text-brand-700 font-bold text-sm">✅ سُمعت اليوم</span>
                         ) : portion && !awaitingExam ? (
                           <form action={recordReview}>
                             <input type="hidden" name="studentId" value={s.id} />
-                            <button className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-lg px-4 py-2 transition">
+                            <button className="bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm rounded-lg px-4 py-2 transition">
                               تسجيل المراجعة
                             </button>
                           </form>
@@ -247,7 +247,7 @@ export default async function ReviewPage({ searchParams }) {
           الدورة تتقدّم بتسجيل المراجعة لا بمرور الأيام — لو غاب الطالب، ينتظره نصيبه كما هو.
         </p>
 
-        <a href="/dashboard" className="inline-block mt-4 text-emerald-700 font-bold">
+        <a href="/dashboard" className="inline-block mt-4 text-brand-700 font-bold">
           ← رجوع للوحة التحكم
         </a>
       </div>

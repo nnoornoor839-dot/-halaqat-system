@@ -117,7 +117,7 @@ export default async function AssignLevelPage({ searchParams }) {
           {isHistorical ? 'تسجيل مستوى سابق' : 'تعيين المستوى التالي'}
         </h1>
         <p className="text-slate-500 mb-1">{student.name}</p>
-        <p className="text-emerald-700 font-bold mb-6">
+        <p className="text-brand-700 font-bold mb-6">
           سيُسجَّل باسم: {levelName(nextNumber)}
         </p>
 
@@ -150,7 +150,7 @@ export default async function AssignLevelPage({ searchParams }) {
               name="semester"
               placeholder="مثال: الفصل الثاني ١٤٤٧"
               required
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-emerald-500"
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-brand-500"
             />
           </div>
 
@@ -160,7 +160,7 @@ export default async function AssignLevelPage({ searchParams }) {
               <select
                 name="startSurah"
                 required
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-emerald-500"
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-brand-500"
               >
                 {SURAHS_DESC.map((s) => (
                   <option key={s.number} value={s.number}>
@@ -177,7 +177,7 @@ export default async function AssignLevelPage({ searchParams }) {
                 min="1"
                 required
                 defaultValue="1"
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-emerald-500"
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-brand-500"
               />
             </div>
           </div>
@@ -188,7 +188,7 @@ export default async function AssignLevelPage({ searchParams }) {
               <select
                 name="endSurah"
                 required
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-emerald-500"
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-brand-500"
               >
                 {SURAHS_DESC.map((s) => (
                   <option key={s.number} value={s.number}>
@@ -205,7 +205,7 @@ export default async function AssignLevelPage({ searchParams }) {
                 min="1"
                 required
                 defaultValue="1"
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-emerald-500"
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-brand-500"
               />
             </div>
           </div>
@@ -220,7 +220,7 @@ export default async function AssignLevelPage({ searchParams }) {
                   name="examDate"
                   required
                   defaultValue={today}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-emerald-500"
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-brand-500"
                 />
               </div>
               <div>
@@ -232,7 +232,7 @@ export default async function AssignLevelPage({ searchParams }) {
                   max="100"
                   step="0.5"
                   required
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-emerald-500"
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-brand-500"
                 />
               </div>
             </>
@@ -240,13 +240,13 @@ export default async function AssignLevelPage({ searchParams }) {
 
           <button
             type="submit"
-            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg py-2.5 transition mt-2"
+            className="bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-lg py-2.5 transition mt-2"
           >
             {isHistorical ? 'حفظ المستوى السابق' : 'حفظ المستوى'}
           </button>
         </form>
 
-        <a href="/levels" className="inline-block mt-6 text-emerald-700 font-bold">
+        <a href="/levels" className="inline-block mt-6 text-brand-700 font-bold">
           ← رجوع
         </a>
       </div>

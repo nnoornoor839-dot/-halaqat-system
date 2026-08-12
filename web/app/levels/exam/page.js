@@ -87,7 +87,7 @@ export default async function ExamPage({ searchParams }) {
               name="examDate"
               required
               defaultValue={today}
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-emerald-500"
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-brand-500"
             />
           </div>
 
@@ -100,7 +100,7 @@ export default async function ExamPage({ searchParams }) {
               max="100"
               step="0.5"
               required
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-emerald-500"
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-brand-500"
             />
           </div>
 
@@ -111,19 +111,19 @@ export default async function ExamPage({ searchParams }) {
             <input
               type="date"
               name="retryDate"
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-emerald-500"
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-brand-500"
             />
           </div>
 
           <button
             type="submit"
-            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg py-2.5 transition mt-2"
+            className="bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-lg py-2.5 transition mt-2"
           >
             حفظ النتيجة
           </button>
         </form>
 
-        <a href="/levels" className="inline-block mt-6 text-emerald-700 font-bold">
+        <a href="/levels" className="inline-block mt-6 text-brand-700 font-bold">
           ← رجوع
         </a>
       </div>

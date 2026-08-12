@@ -1,4 +1,5 @@
 import { requireUser, canAccess } from '@/lib/auth';
+import { ASSOCIATION_NAME } from '@/lib/association';
 
 const ROLE_LABELS = {
   teacher: 'معلم',
@@ -9,7 +10,7 @@ const ROLE_LABELS = {
 // الروابط تُبنى من نفس مصدر الصلاحيات المستخدم لحماية الصفحات، فلا يظهر
 // للمستخدم رابط لصفحة سيُمنع منها.
 const LINKS = [
-  { page: 'teacher', href: '/teacher', label: 'تحضير اليوم', color: 'bg-emerald-600 hover:bg-emerald-700' },
+  { page: 'teacher', href: '/teacher', label: 'تحضير اليوم', color: 'bg-brand-600 hover:bg-brand-700' },
   { page: 'review', href: '/review', label: 'المراجعة', color: 'bg-sky-600 hover:bg-sky-700' },
   { page: 'overview', href: '/overview', label: 'نظرة عامة', color: 'bg-indigo-600 hover:bg-indigo-700' },
   { page: 'levels', href: '/levels', label: 'المستويات والاختبارات', color: 'bg-rose-600 hover:bg-rose-700' },
@@ -34,7 +35,14 @@ export default async function DashboardPage({ searchParams }) {
   return (
     <div dir="rtl" className="min-h-screen bg-slate-50 p-8">
       <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-md border border-slate-200 p-8">
-        <h1 className="text-2xl font-bold text-slate-800 mb-6">لوحة تحكم نظام الحلقات</h1>
+        <div className="flex items-center gap-4 border-b border-slate-200 pb-5 mb-6">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt={ASSOCIATION_NAME} className="h-14 w-auto shrink-0" />
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold text-slate-800">نظام الحلقات</h1>
+            <p className="text-slate-400 text-sm truncate">{ASSOCIATION_NAME}</p>
+          </div>
+        </div>
 
         {params?.denied && (
           <p className="text-amber-800 text-sm bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">

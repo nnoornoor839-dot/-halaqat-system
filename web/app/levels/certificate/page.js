@@ -60,18 +60,17 @@ export default async function CertificatePage({ searchParams }) {
       `}</style>
 
       <div className="max-w-2xl mx-auto no-print mb-6 flex justify-between items-center">
-        <a href="/levels" className="text-emerald-700 font-bold">
+        <a href="/levels" className="text-brand-700 font-bold">
           ← رجوع
         </a>
         <PrintButton />
       </div>
 
       <div className="max-w-2xl mx-auto bg-white shadow-md border border-slate-300 p-10 print:shadow-none print:border-0 text-center">
-        <div className="border-b-4 border-slate-800 pb-4 mb-8">
-          <h1 className="text-2xl font-black text-slate-800">{ASSOCIATION_NAME}</h1>
-          <p className="text-slate-500 mt-1">
-            شهادة اجتياز {levelName(level.level_number)}
-          </p>
+        <div className="border-b-4 border-brand-600 pb-5 mb-8 flex flex-col items-center gap-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt={ASSOCIATION_NAME} className="h-20 w-auto" />
+          <p className="text-slate-500">شهادة اجتياز {levelName(level.level_number)}</p>
         </div>
 
         <p className="text-lg text-slate-600 mb-2">تشهد إدارة الجمعية بأن الطالب</p>
@@ -103,7 +102,7 @@ export default async function CertificatePage({ searchParams }) {
             </tr>
             <tr className="bg-slate-50">
               <td className="py-3 font-bold text-slate-800 text-lg">التقدير</td>
-              <td className="py-3 text-left font-black text-emerald-700 text-xl">{exam.grade}</td>
+              <td className="py-3 text-left font-black text-brand-700 text-xl">{exam.grade}</td>
             </tr>
           </tbody>
         </table>

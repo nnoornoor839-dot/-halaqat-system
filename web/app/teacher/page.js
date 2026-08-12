@@ -217,7 +217,7 @@ export default async function TeacherPage({ searchParams }) {
                           </div>
                           <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
                             <div
-                              className="h-full bg-emerald-500"
+                              className="h-full bg-brand-500"
                               style={{ width: `${progress.percent}%` }}
                             />
                           </div>
@@ -226,7 +226,7 @@ export default async function TeacherPage({ searchParams }) {
 
                       <div className="text-xs">
                         {exam?.passed ? (
-                          <span className="inline-block bg-emerald-100 text-emerald-800 font-bold px-2 py-1 rounded-full">
+                          <span className="inline-block bg-brand-100 text-brand-800 font-bold px-2 py-1 rounded-full">
                             ✅ أنهى مستواه — بانتظار التالي
                           </span>
                         ) : exam ? (
@@ -273,7 +273,7 @@ export default async function TeacherPage({ searchParams }) {
                           <button
                             className={`w-full px-1 py-2 rounded-lg font-bold text-xs transition ${
                               isPresent
-                                ? 'bg-emerald-600 text-white'
+                                ? 'bg-brand-600 text-white'
                                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                             }`}
                           >
@@ -320,7 +320,7 @@ export default async function TeacherPage({ searchParams }) {
           )}
         </div>
 
-        <a href="/dashboard" className="inline-block mt-8 text-emerald-700 font-bold">
+        <a href="/dashboard" className="inline-block mt-8 text-brand-700 font-bold">
           ← رجوع للوحة التحكم
         </a>
       </div>

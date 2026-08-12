@@ -122,7 +122,7 @@ export default async function TicketsPage() {
                   ))}
                   <td className="py-3 px-2 text-center">
                     {issued ? (
-                      <span className="text-emerald-600 font-bold">🎟️ صدرت</span>
+                      <span className="text-brand-600 font-bold">🎟️ صدرت</span>
                     ) : eligible ? (
                       <span className="text-amber-600 font-bold">مستحق</span>
                     ) : (
@@ -163,7 +163,7 @@ export default async function TicketsPage() {
           </button>
         </form>
 
-        <a href="/dashboard" className="inline-block mt-8 text-emerald-700 font-bold">
+        <a href="/dashboard" className="inline-block mt-8 text-brand-700 font-bold">
           ← رجوع للوحة التحكم
         </a>
       </div>

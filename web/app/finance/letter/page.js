@@ -49,16 +49,17 @@ export default async function FinanceLetterPage({ searchParams }) {
       `}</style>
 
       <div className="max-w-2xl mx-auto no-print mb-6 flex justify-between items-center">
-        <a href="/finance" className="text-emerald-700 font-bold">
+        <a href="/finance" className="text-brand-700 font-bold">
           ← رجوع
         </a>
         <PrintButton />
       </div>
 
       <div className="max-w-2xl mx-auto bg-white shadow-md border border-slate-300 p-10 print:shadow-none print:border-0">
-        <div className="text-center border-b-4 border-slate-800 pb-4 mb-8">
-          <h1 className="text-2xl font-black text-slate-800">{ASSOCIATION_NAME}</h1>
-          <p className="text-slate-500 mt-1">طلب اعتماد صرف — تذاكر الترفيه الأسبوعية</p>
+        <div className="text-center border-b-4 border-brand-600 pb-5 mb-8 flex flex-col items-center gap-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt={ASSOCIATION_NAME} className="h-20 w-auto" />
+          <p className="text-slate-500">طلب اعتماد صرف — تذاكر الترفيه الأسبوعية</p>
         </div>
 
         <p className="text-left text-slate-500 mb-6">{createdDate}</p>
@@ -89,7 +90,7 @@ export default async function FinanceLetterPage({ searchParams }) {
             </tr>
             <tr className="bg-slate-50">
               <td className="py-3 font-bold text-slate-800 text-lg">الإجمالي المطلوب اعتماده</td>
-              <td className="py-3 text-left font-black text-emerald-700 text-xl">
+              <td className="py-3 text-left font-black text-brand-700 text-xl">
                 {request.total_amount} ريال
               </td>
             </tr>

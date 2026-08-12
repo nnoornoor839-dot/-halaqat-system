@@ -36,9 +36,13 @@ export default function LoginPage() {
         onSubmit={handleLogin}
         className="w-full max-w-sm bg-white rounded-2xl shadow-md border border-slate-200 p-8 flex flex-col gap-5"
       >
-        <h1 className="text-2xl font-bold text-slate-800 text-center">
-          تسجيل الدخول — نظام الحلقات
-        </h1>
+        <div className="flex flex-col items-center gap-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="شعار الجمعية" className="h-16 w-auto" />
+          <h1 className="text-xl font-bold text-slate-800 text-center">
+            تسجيل الدخول — نظام الحلقات
+          </h1>
+        </div>
 
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-bold text-slate-600">البريد الإلكتروني</label>
@@ -47,7 +51,7 @@ export default function LoginPage() {
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-emerald-500"
+            className="border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-brand-500"
           />
         </div>
 
@@ -58,7 +62,7 @@ export default function LoginPage() {
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-emerald-500"
+            className="border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-brand-500"
           />
         </div>
 
@@ -71,7 +75,7 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={loading}
-          className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-bold rounded-lg py-2.5 transition"
+          className="bg-brand-600 hover:bg-brand-700 disabled:opacity-60 text-white font-bold rounded-lg py-2.5 transition"
         >
           {loading ? 'جاري الدخول...' : 'دخول'}
         </button>
