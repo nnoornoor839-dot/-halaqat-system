@@ -2,7 +2,11 @@ import { SURAHS } from '@/lib/quran-surahs';
 import { computeProgress } from '@/lib/quran-progress';
 import { buildQuranIndex } from '@/lib/quran-index';
 import { levelName } from '@/lib/level-name';
+import { countWorkDaysBetween } from '@/lib/work-days';
 import { requireRole, PAGE_ROLES } from '@/lib/auth';
+
+// الطالب يتوقف عن الجديد والمراجعة أثناء التجهيز للاختبار، فتأخّره يعطّله تماماً.
+const EXAM_DELAY_WORK_DAYS = 3;
 
 function surahName(num) {
   return SURAHS.find((s) => s.number === num)?.name ?? num;
@@ -29,9 +33,11 @@ export default async function LevelsPage() {
       .order('level_number', { ascending: true }),
     supabase
       .from('daily_records')
-      .select('student_id, type, start_surah, start_ayah, end_surah, end_ayah')
+      .select('student_id, type, date, start_surah, start_ayah, end_surah, end_ayah')
       .in('student_id', idsFilter),
   ]);
+
+  const today = new Date().toISOString().slice(0, 10);
 
   // مستويات كل طالب مرتّبة: الأخير هو مستواه الحالي، والباقي سجلّه السابق
   const levelsByStudent = new Map();
@@ -79,13 +85,31 @@ export default async function LevelsPage() {
         color: 'text-red-600 font-bold',
       };
     } else if (progress && progress.percent >= 100) {
-      status = { key: 'ready', label: '🏆 جاهز للاختبار', color: 'text-amber-700 font-bold' };
+      // متى صار جاهزاً؟ آخر تسجيل جديد هو ما أتمّ مستواه، لأن التسجيل يُقفل بعد الإتمام
+      const newDates = (recordsMap.get(s.id) ?? [])
+        .filter((r) => r.type === 'جديد' && r.date)
+        .map((r) => r.date)
+        .sort();
+      const readySince = newDates[newDates.length - 1] ?? null;
+      const waitedWorkDays = readySince ? countWorkDaysBetween(readySince, today) : 0;
+      const overdue = waitedWorkDays > EXAM_DELAY_WORK_DAYS;
+
+      status = {
+        key: 'ready',
+        label: overdue
+          ? `⚠️ متأخر — جاهز للاختبار منذ ${waitedWorkDays} أيام عمل`
+          : '🏆 جاهز للاختبار',
+        color: overdue ? 'text-red-700 font-bold' : 'text-amber-700 font-bold',
+        overdue,
+      };
     } else {
       status = { key: 'progress', label: 'قيد التقدم', color: 'text-slate-500' };
     }
 
     return { student: s, current, past, progress, exam, status };
   });
+
+  const overdueRows = rows.filter((r) => r.status.overdue);
 
   return (
     <div dir="rtl" className="min-h-screen bg-slate-50 p-8">
@@ -94,6 +118,20 @@ export default async function LevelsPage() {
         <p className="text-slate-500 mb-6">
           تعيين المستويات، ورصد نتائج الاختبارات، وتسجيل مستويات الطلاب المنتقلين
         </p>
+
+        {overdueRows.length > 0 && (
+          <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4 mb-6">
+            <p className="font-bold text-red-800 mb-1">
+              ⚠️ {overdueRows.length} طالب تجاوز {EXAM_DELAY_WORK_DAYS} أيام عمل بانتظار الاختبار
+            </p>
+            <p className="text-red-700 text-sm mb-2">
+              الطالب يتوقف عن الحفظ الجديد والمراجعة أثناء التجهيز، فتأخّر اختباره يعطّله تماماً.
+            </p>
+            <p className="text-red-800 text-sm font-bold">
+              {overdueRows.map((r) => r.student.name).join('، ')}
+            </p>
+          </div>
+        )}
 
         <div className="overflow-x-auto">
           <table className="w-full text-right border-collapse">
