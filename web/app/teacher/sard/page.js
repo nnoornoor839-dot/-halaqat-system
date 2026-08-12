@@ -33,21 +33,30 @@ async function recordSard(formData) {
   }
 
   // بعد الحفظ: نتحقق هل الطالب عبر محطة جديدة (25/50/75/100%) لأول مرة
+  // بالنسبة لهدفه الحالي بالذات (آخر صف بجدول student_levels) — مو بالنسبة
+  // لكل تاريخه، عشان لو خلص هدف قديم وانعطى هدف جديد، تبدأ محطاته من جديد.
   let newMilestone = null;
-  const [{ data: level }, { data: allRecords }, { data: existingMilestones }] = await Promise.all([
+  const [{ data: level }, { data: allRecords }] = await Promise.all([
     supabase
       .from('student_levels')
-      .select('target_start_surah, target_start_ayah, target_end_surah, target_end_ayah')
+      .select('id, target_start_surah, target_start_ayah, target_end_surah, target_end_ayah')
       .eq('student_id', studentId)
+      .order('id', { ascending: false })
+      .limit(1)
       .maybeSingle(),
     supabase
       .from('daily_records')
       .select('start_surah, start_ayah, end_surah, end_ayah')
       .eq('student_id', studentId),
-    supabase.from('milestone_log').select('milestone_percent').eq('student_id', studentId),
   ]);
 
   if (level) {
+    const { data: existingMilestones } = await supabase
+      .from('milestone_log')
+      .select('milestone_percent')
+      .eq('student_id', studentId)
+      .eq('level_id', level.id);
+
     const quranIndex = buildQuranIndex();
     const progress = computeProgress(quranIndex, level, allRecords ?? []);
     const already = new Set((existingMilestones ?? []).map((m) => m.milestone_percent));
@@ -57,7 +66,7 @@ async function recordSard(formData) {
       newMilestone = Math.max(...reached);
       await supabase
         .from('milestone_log')
-        .insert(reached.map((m) => ({ student_id: studentId, milestone_percent: m })));
+        .insert(reached.map((m) => ({ student_id: studentId, level_id: level.id, milestone_percent: m })));
     }
   }
 

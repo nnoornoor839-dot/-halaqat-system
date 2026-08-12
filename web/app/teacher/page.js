@@ -51,17 +51,19 @@ export default async function TeacherPage({ searchParams }) {
     supabase.from('attendance').select('student_id, attended, early_arrival').eq('date', today),
     supabase
       .from('student_levels')
-      .select('student_id, target_start_surah, target_start_ayah, target_end_surah, target_end_ayah')
-      .in('student_id', idsFilter),
+      .select('id, student_id, target_start_surah, target_start_ayah, target_end_surah, target_end_ayah')
+      .in('student_id', idsFilter)
+      .order('id', { ascending: true }),
     supabase
       .from('daily_records')
       .select('student_id, start_surah, start_ayah, end_surah, end_ayah')
       .in('student_id', idsFilter),
-    supabase.from('milestone_log').select('student_id, milestone_percent').in('student_id', idsFilter),
+    supabase.from('milestone_log').select('student_id, level_id, milestone_percent').in('student_id', idsFilter),
   ]);
 
   const attendanceMap = new Map((todayAttendance ?? []).map((a) => [a.student_id, a]));
 
+  // آخر صف لكل طالب بجدول student_levels هو "هدفه الحالي" (لو تغيّر هدفه أكثر من مرة)
   const levelMap = new Map((levels ?? []).map((l) => [l.student_id, l]));
   const recordsMap = new Map();
   for (const r of allRecords ?? []) {
@@ -69,8 +71,11 @@ export default async function TeacherPage({ searchParams }) {
     recordsMap.get(r.student_id).push(r);
   }
 
+  // المحطات المعروضة تخص الهدف الحالي بس (مو كل تاريخ الطالب)
   const milestonesMap = new Map();
   for (const m of milestones ?? []) {
+    const currentLevel = levelMap.get(m.student_id);
+    if (!currentLevel || m.level_id !== currentLevel.id) continue;
     if (!milestonesMap.has(m.student_id)) milestonesMap.set(m.student_id, []);
     milestonesMap.get(m.student_id).push(m.milestone_percent);
   }
@@ -132,13 +137,20 @@ export default async function TeacherPage({ searchParams }) {
                       </div>
                     </div>
                   )}
+                  {achieved.includes(100) && (
+                    <span className="inline-block bg-amber-100 text-amber-800 text-xs font-bold px-2 py-1 rounded-full mt-1">
+                      🏆 جاهز للاختبار
+                    </span>
+                  )}
                   {achieved.length > 0 && (
                     <div className="flex gap-1 mt-1">
-                      {achieved.map((m) => (
-                        <span key={m} title={`${m}%`}>
-                          {m === 100 ? '🏆' : '🏅'}
-                        </span>
-                      ))}
+                      {achieved
+                        .filter((m) => m !== 100)
+                        .map((m) => (
+                          <span key={m} title={`${m}%`}>
+                            🏅
+                          </span>
+                        ))}
                     </div>
                   )}
                 </div>

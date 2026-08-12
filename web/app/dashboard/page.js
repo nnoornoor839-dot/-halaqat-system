@@ -103,6 +103,12 @@ export default async function DashboardPage() {
           >
             لوحة القيادة ←
           </a>
+          <a
+            href="/levels"
+            className="inline-block bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg px-5 py-2.5 transition"
+          >
+            المستويات والاختبارات ←
+          </a>
         </div>
 
         <form action="/api/logout" method="post" className="mt-4">

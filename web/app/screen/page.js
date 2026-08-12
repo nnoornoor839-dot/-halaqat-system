@@ -28,7 +28,8 @@ export default async function ScreenPage() {
     supabase
       .from('student_levels')
       .select('student_id, target_start_surah, target_start_ayah, target_end_surah, target_end_ayah')
-      .in('student_id', idsFilter),
+      .in('student_id', idsFilter)
+      .order('id', { ascending: true }),
     supabase
       .from('daily_records')
       .select('student_id, date, start_surah, start_ayah, end_surah, end_ayah')

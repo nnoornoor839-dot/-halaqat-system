@@ -67,11 +67,27 @@ create table student_levels (
 );
 
 -- 7) سجل المحطات — لتفادي إرسال نفس رسالة التهنئة مرتين
+-- level_id يربط كل محطة بمستواها المحدد (وليس بالطالب فقط)، عشان لو انعطى
+-- الطالب هدف جديد بعد إنهاء هدف قديم، تبدأ محطاته (25/50/75/100%) من جديد
+-- بدل ما يظن النظام إنها مكررة من الهدف القديم.
 create table milestone_log (
   id serial primary key,
   student_id int references students(id) not null,
+  level_id int references student_levels(id),
   milestone_percent int not null,
   notified_at timestamptz default now()
+);
+
+-- 7ب) نتائج اختبارات نهاية المستوى — كل محاولة اختبار سجل مستقل (يدعم إعادة الاختبار)
+create table exam_results (
+  id serial primary key,
+  level_id int references student_levels(id) not null,
+  exam_date date not null,
+  score numeric not null,
+  grade text not null,          -- التقدير المشتق من الدرجة وقت الرصد (لا يُعاد حسابه لاحقاً)
+  passed boolean not null,
+  retry_date date,              -- يُملأ فقط لو رسب الطالب
+  created_at timestamptz default now()
 );
 
 -- 8) تذاكر الترفيه الأسبوعية — وثيقة رسمية مُصدرة، لا تُعاد حسابها لاحقاً
