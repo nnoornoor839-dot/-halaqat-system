@@ -20,6 +20,21 @@ export function countWorkDaysBetween(fromISO, toISO) {
   return count;
 }
 
+/** أيام العمل السابقة مباشرةً قبل يوم معيّن، الأقرب أولاً. */
+export function previousWorkDays(todayISO, count) {
+  const days = [];
+  const cursor = new Date(`${todayISO}T00:00:00Z`);
+  let guard = 0;
+  while (days.length < count && guard < 60) {
+    cursor.setUTCDate(cursor.getUTCDate() - 1);
+    if (WORK_DAYS.includes(cursor.getUTCDay())) {
+      days.push(cursor.toISOString().slice(0, 10));
+    }
+    guard++;
+  }
+  return days;
+}
+
 /** تواريخ أسبوع العمل الحالي (الأحد إلى الأربعاء). */
 export function getWorkWeekDates(today = new Date()) {
   const sunday = new Date(today);

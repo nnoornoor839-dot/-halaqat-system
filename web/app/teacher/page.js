@@ -4,6 +4,8 @@ import { computeProgress } from '@/lib/quran-progress';
 import { buildQuranIndex } from '@/lib/quran-index';
 import { computeNewMemorizationState } from '@/lib/new-memorization';
 import { SURAHS } from '@/lib/quran-surahs';
+import { levelName } from '@/lib/level-name';
+import { previousWorkDays } from '@/lib/work-days';
 import { requireRole, PAGE_ROLES } from '@/lib/auth';
 
 function surahName(num) {
@@ -35,18 +37,21 @@ export default async function TeacherPage({ searchParams }) {
   const { supabase } = await requireRole(PAGE_ROLES.teacher);
 
   const today = new Date().toISOString().slice(0, 10);
+  const priorWorkDays = previousWorkDays(today, 4);
 
-  const { data: students } = await supabase.from('students').select('id, name').order('name');
+  const { data: students } = await supabase
+    .from('students')
+    .select('id, name, halaqah_id, halaqat(name)')
+    .order('name');
   const studentIds = (students ?? []).map((s) => s.id);
   const idsFilter = studentIds.length ? studentIds : [-1];
 
-  const [
-    { data: todayAttendance },
-    { data: levels },
-    { data: allRecords },
-    { data: milestones },
-  ] = await Promise.all([
-    supabase.from('attendance').select('student_id, attended, early_arrival').eq('date', today),
+  const [{ data: attendanceRows }, { data: levels }, { data: allRecords }] = await Promise.all([
+    supabase
+      .from('attendance')
+      .select('student_id, date, attended, early_arrival')
+      .in('date', [today, ...priorWorkDays])
+      .in('student_id', idsFilter),
     supabase
       .from('student_levels')
       .select(
@@ -58,41 +63,36 @@ export default async function TeacherPage({ searchParams }) {
       .from('daily_records')
       .select('student_id, type, start_surah, start_ayah, end_surah, end_ayah')
       .in('student_id', idsFilter),
-    supabase.from('milestone_log').select('student_id, level_id, milestone_percent').in('student_id', idsFilter),
   ]);
 
-  const { data: deliveries } = await supabase
-    .from('surah_deliveries')
-    .select('student_id, surah_number, approved')
-    .in('student_id', idsFilter);
+  const levelList = levels ?? [];
+  const [{ data: deliveries }, { data: examRows }] = await Promise.all([
+    supabase
+      .from('surah_deliveries')
+      .select('student_id, surah_number, approved')
+      .in('student_id', idsFilter),
+    supabase
+      .from('exam_results')
+      .select('level_id, passed, grade, retry_date')
+      .in('level_id', levelList.length ? levelList.map((l) => l.id) : [-1])
+      .order('id', { ascending: true }),
+  ]);
 
-  // نحتاج نتائج الاختبارات حتى نميّز بين "أنهى مستواه وينتظر اختباره" وبين
-  // "اختبر ونجح فعلاً وينتظر مستواه التالي" — الحالتان تبدوان متطابقتين بلا هذا.
-  const levelIds = (levels ?? []).map((l) => l.id);
-  const { data: examRows } = await supabase
-    .from('exam_results')
-    .select('level_id, passed, grade, retry_date')
-    .in('level_id', levelIds.length ? levelIds : [-1])
-    .order('id', { ascending: true });
   const examByLevel = new Map((examRows ?? []).map((e) => [e.level_id, e]));
 
-  const attendanceMap = new Map((todayAttendance ?? []).map((a) => [a.student_id, a]));
+  const todayAttendance = new Map();
+  const attendanceByStudentDate = new Map();
+  for (const a of attendanceRows ?? []) {
+    if (a.date === today) todayAttendance.set(a.student_id, a);
+    attendanceByStudentDate.set(`${a.student_id}|${a.date}`, a);
+  }
 
-  // آخر صف لكل طالب بجدول student_levels هو "هدفه الحالي" (لو تغيّر هدفه أكثر من مرة)
-  const levelMap = new Map((levels ?? []).map((l) => [l.student_id, l]));
+  const levelMap = new Map(levelList.map((l) => [l.student_id, l]));
+
   const recordsMap = new Map();
   for (const r of allRecords ?? []) {
     if (!recordsMap.has(r.student_id)) recordsMap.set(r.student_id, []);
     recordsMap.get(r.student_id).push(r);
-  }
-
-  // المحطات المعروضة تخص الهدف الحالي بس (مو كل تاريخ الطالب)
-  const milestonesMap = new Map();
-  for (const m of milestones ?? []) {
-    const currentLevel = levelMap.get(m.student_id);
-    if (!currentLevel || m.level_id !== currentLevel.id) continue;
-    if (!milestonesMap.has(m.student_id)) milestonesMap.set(m.student_id, []);
-    milestonesMap.get(m.student_id).push(m.milestone_percent);
   }
 
   const deliveriesMap = new Map();
@@ -103,29 +103,51 @@ export default async function TeacherPage({ searchParams }) {
 
   const quranIndex = buildQuranIndex();
 
-  // حالة الجديد لكل طالب: سورته الحالية، وهل فيه سورة تنتظر تسليماً تقفل عليه
-  const newStateMap = new Map();
+  // غياب متتالٍ في أيام العمل السابقة — يوم بلا تسجيل يقطع العدّ فلا نفترض غياباً
+  function absenceStreak(studentId) {
+    let streak = 0;
+    for (const day of priorWorkDays) {
+      const row = attendanceByStudentDate.get(`${studentId}|${day}`);
+      if (row && row.attended === false) streak++;
+      else break;
+    }
+    return streak;
+  }
+
+  const groups = new Map();
   for (const s of students ?? []) {
     const level = levelMap.get(s.id);
-    if (!level) continue;
-    const newRecords = (recordsMap.get(s.id) ?? []).filter((r) => r.type === 'جديد');
-    newStateMap.set(
-      s.id,
-      computeNewMemorizationState(
-        quranIndex,
-        level,
-        newRecords,
-        deliveriesMap.get(s.id) ?? [],
-        level.level_number
-      )
-    );
+    const records = recordsMap.get(s.id) ?? [];
+    const newState = level
+      ? computeNewMemorizationState(
+          quranIndex,
+          level,
+          records.filter((r) => r.type === 'جديد'),
+          deliveriesMap.get(s.id) ?? [],
+          level.level_number
+        )
+      : null;
+
+    const key = s.halaqat?.name ?? 'بلا حلقة';
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push({
+      student: s,
+      level,
+      newState,
+      exam: level ? examByLevel.get(level.id) : null,
+      progress: level ? computeProgress(quranIndex, level, records) : null,
+      attendance: todayAttendance.get(s.id) ?? null,
+      streak: absenceStreak(s.id),
+    });
   }
 
   return (
-    <div dir="rtl" className="min-h-screen bg-slate-50 p-8">
-      <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-md border border-slate-200 p-8">
-        <h1 className="text-2xl font-bold text-slate-800 mb-1">تحضير اليوم</h1>
-        <p className="text-slate-500 mb-6">{today}</p>
+    <div dir="rtl" className="min-h-screen bg-slate-50 p-6 sm:p-8">
+      <div className="max-w-5xl mx-auto">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-slate-800">تحضير اليوم</h1>
+          <p className="text-slate-500">{today}</p>
+        </div>
 
         {params?.error && (
           <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
@@ -134,10 +156,8 @@ export default async function TeacherPage({ searchParams }) {
         )}
 
         {params?.milestone && (
-          <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-4 mb-4 text-center">
-            <p className="text-2xl mb-1">
-              {params.milestone === '100' ? '🏆' : '🎉'}
-            </p>
+          <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-4 mb-6 text-center">
+            <p className="text-2xl mb-1">{params.milestone === '100' ? '🏆' : '🎉'}</p>
             <p className="font-bold text-amber-800">
               {params.milestone === '100'
                 ? 'مبروك! طالب أنهى هدفه بالكامل — جاهز للاختبار'
@@ -146,137 +166,157 @@ export default async function TeacherPage({ searchParams }) {
           </div>
         )}
 
-        <div className="flex flex-col gap-3">
-          {students?.map((s) => {
-            const status = attendanceMap.get(s.id);
-            const isAbsent = status?.attended === false;
-            const isPresent = status?.attended === true && !status?.early_arrival;
-            const isEarly = status?.attended === true && status?.early_arrival === true;
-            const level = levelMap.get(s.id);
-            const progress = level ? computeProgress(quranIndex, level, recordsMap.get(s.id) ?? []) : null;
-            const achieved = (milestonesMap.get(s.id) ?? []).sort((a, b) => a - b);
-            const newState = newStateMap.get(s.id);
-            const exam = level ? examByLevel.get(level.id) : null;
-            return (
-              <div
-                key={s.id}
-                className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border border-slate-200 rounded-xl p-3"
-              >
-                <div>
-                  <span className="font-bold text-slate-700">{s.name}</span>
-                  {progress && (
-                    <div className="mt-1 w-40">
-                      <div className="flex justify-between text-xs text-slate-500 mb-0.5">
-                        <span>التقدم</span>
-                        <span>{progress.percent}%</span>
+        <div className="flex flex-col gap-8">
+          {[...groups.entries()].map(([halaqahName, cards]) => (
+            <section key={halaqahName}>
+              <h2 className="font-bold text-slate-500 mb-3 border-b border-slate-200 pb-2">
+                {halaqahName}
+                <span className="text-slate-400 font-normal text-sm"> · {cards.length} طالب</span>
+              </h2>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {cards.map(({ student: s, level, newState, exam, progress, attendance, streak }) => {
+                  const isAbsent = attendance?.attended === false;
+                  const isPresent = attendance?.attended === true && !attendance?.early_arrival;
+                  const isEarly = attendance?.attended === true && attendance?.early_arrival === true;
+
+                  const border =
+                    streak >= 2
+                      ? 'border-red-400 border-2'
+                      : streak === 1
+                        ? 'border-amber-400 border-2'
+                        : 'border-slate-200';
+
+                  return (
+                    <div
+                      key={s.id}
+                      className={`relative bg-white rounded-2xl shadow-sm p-4 flex flex-col gap-3 ${border}`}
+                    >
+                      {streak > 0 && (
+                        <span
+                          className={`absolute -top-2 -left-2 text-[11px] font-bold px-2 py-0.5 rounded-full shadow ${
+                            streak >= 2 ? 'bg-red-500 text-white' : 'bg-amber-400 text-slate-900'
+                          }`}
+                        >
+                          ⚠️ غاب {streak === 1 ? 'آخر يوم' : `${streak} أيام`}
+                        </span>
+                      )}
+
+                      <div>
+                        <p className="font-bold text-slate-800 leading-tight">{s.name}</p>
+                        {level && (
+                          <p className="text-xs text-slate-400">{levelName(level.level_number)}</p>
+                        )}
                       </div>
-                      <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-emerald-500"
-                          style={{ width: `${progress.percent}%` }}
-                        />
-                      </div>
-                    </div>
-                  )}
-                  {exam?.passed ? (
-                    <span className="inline-block bg-emerald-100 text-emerald-800 text-xs font-bold px-2 py-1 rounded-full mt-1">
-                      ✅ أنهى مستواه — بانتظار المستوى التالي
-                    </span>
-                  ) : exam && !exam.passed ? (
-                    <span className="inline-block bg-red-100 text-red-800 text-xs font-bold px-2 py-1 rounded-full mt-1">
-                      ⏳ بانتظار إعادة الاختبار
-                      {exam.retry_date ? ` — ${exam.retry_date}` : ''}
-                    </span>
-                  ) : newState?.pendingDelivery ? (
-                    <span className="inline-block bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded-full mt-1">
-                      🔒 بانتظار تسليم {surahName(newState.pendingDelivery)}
-                    </span>
-                  ) : newState?.isLevelComplete ? (
-                    <span className="inline-block bg-amber-100 text-amber-800 text-xs font-bold px-2 py-1 rounded-full mt-1">
-                      🏆 جاهز للاختبار
-                    </span>
-                  ) : newState?.currentSurah ? (
-                    <span className="inline-block text-xs text-slate-500 mt-1">
-                      السورة الحالية: {surahName(newState.currentSurah)}
-                      {newState.lastAyahReached > 0 && ` — آية ${newState.lastAyahReached}`}
-                    </span>
-                  ) : null}
-                  {achieved.length > 0 && (
-                    <div className="flex gap-1 mt-1">
-                      {achieved
-                        .filter((m) => m !== 100)
-                        .map((m) => (
-                          <span key={m} title={`${m}%`}>
-                            🏅
+
+                      {progress && (
+                        <div>
+                          <div className="flex justify-between text-xs text-slate-500 mb-1">
+                            <span>التقدم</span>
+                            <span className="font-bold">{progress.percent}%</span>
+                          </div>
+                          <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-emerald-500"
+                              style={{ width: `${progress.percent}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="text-xs">
+                        {exam?.passed ? (
+                          <span className="inline-block bg-emerald-100 text-emerald-800 font-bold px-2 py-1 rounded-full">
+                            ✅ أنهى مستواه — بانتظار التالي
                           </span>
-                        ))}
+                        ) : exam ? (
+                          <span className="inline-block bg-red-100 text-red-800 font-bold px-2 py-1 rounded-full">
+                            ⏳ بانتظار إعادة الاختبار
+                          </span>
+                        ) : newState?.pendingDelivery ? (
+                          <span className="inline-block bg-blue-100 text-blue-800 font-bold px-2 py-1 rounded-full">
+                            🔒 بانتظار تسليم {surahName(newState.pendingDelivery)}
+                          </span>
+                        ) : newState?.isLevelComplete ? (
+                          <span className="inline-block bg-amber-100 text-amber-800 font-bold px-2 py-1 rounded-full">
+                            🏆 جاهز للاختبار
+                          </span>
+                        ) : newState?.currentSurah ? (
+                          <span className="text-slate-500">
+                            {surahName(newState.currentSurah)}
+                            {newState.lastAyahReached > 0 && ` — آية ${newState.lastAyahReached}`}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400">ما فيه مستوى محدد</span>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-1.5">
+                        <form action={markAttendance}>
+                          <input type="hidden" name="studentId" value={s.id} />
+                          <input type="hidden" name="attended" value="true" />
+                          <input type="hidden" name="early" value="true" />
+                          <button
+                            className={`w-full px-1 py-2 rounded-lg font-bold text-xs transition ${
+                              isEarly
+                                ? 'bg-amber-500 text-white'
+                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                            }`}
+                          >
+                            مبكراً
+                          </button>
+                        </form>
+                        <form action={markAttendance}>
+                          <input type="hidden" name="studentId" value={s.id} />
+                          <input type="hidden" name="attended" value="true" />
+                          <input type="hidden" name="early" value="false" />
+                          <button
+                            className={`w-full px-1 py-2 rounded-lg font-bold text-xs transition ${
+                              isPresent
+                                ? 'bg-emerald-600 text-white'
+                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                            }`}
+                          >
+                            حاضر
+                          </button>
+                        </form>
+                        <form action={markAttendance}>
+                          <input type="hidden" name="studentId" value={s.id} />
+                          <input type="hidden" name="attended" value="false" />
+                          <input type="hidden" name="early" value="false" />
+                          <button
+                            className={`w-full px-1 py-2 rounded-lg font-bold text-xs transition ${
+                              isAbsent
+                                ? 'bg-red-600 text-white'
+                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                            }`}
+                          >
+                            غائب
+                          </button>
+                        </form>
+                      </div>
+
+                      {!exam && (newState?.pendingDelivery || newState?.currentSurah) && (
+                        <a
+                          href={`/teacher/sard?studentId=${s.id}`}
+                          className={`block text-center px-3 py-2 rounded-lg font-bold text-sm transition ${
+                            newState?.pendingDelivery
+                              ? 'bg-blue-600 text-white hover:bg-blue-700'
+                              : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                          }`}
+                        >
+                          {newState?.pendingDelivery ? 'تسليم السورة' : 'تسجيل الجديد'}
+                        </a>
+                      )}
                     </div>
-                  )}
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <form action={markAttendance}>
-                    <input type="hidden" name="studentId" value={s.id} />
-                    <input type="hidden" name="attended" value="true" />
-                    <input type="hidden" name="early" value="true" />
-                    <button
-                      className={`px-4 py-1.5 rounded-lg font-bold text-sm transition ${
-                        isEarly
-                          ? 'bg-amber-500 text-white'
-                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                      }`}
-                    >
-                      حاضر مبكراً
-                    </button>
-                  </form>
-                  <form action={markAttendance}>
-                    <input type="hidden" name="studentId" value={s.id} />
-                    <input type="hidden" name="attended" value="true" />
-                    <input type="hidden" name="early" value="false" />
-                    <button
-                      className={`px-4 py-1.5 rounded-lg font-bold text-sm transition ${
-                        isPresent
-                          ? 'bg-emerald-600 text-white'
-                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                      }`}
-                    >
-                      حاضر
-                    </button>
-                  </form>
-                  <form action={markAttendance}>
-                    <input type="hidden" name="studentId" value={s.id} />
-                    <input type="hidden" name="attended" value="false" />
-                    <input type="hidden" name="early" value="false" />
-                    <button
-                      className={`px-4 py-1.5 rounded-lg font-bold text-sm transition ${
-                        isAbsent
-                          ? 'bg-red-600 text-white'
-                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                      }`}
-                    >
-                      غائب
-                    </button>
-                  </form>
-                  {/* الزر يظهر فقط لما يكون فيه إجراء فعلي للمعلم: تسليم سورة أو
-                      تسجيل جديد. بعد رصد الاختبار الأمر بيد المشرف لا المعلم. */}
-                  {!exam && (newState?.pendingDelivery || newState?.currentSurah) && (
-                    <a
-                      href={`/teacher/sard?studentId=${s.id}`}
-                      className={`px-4 py-1.5 rounded-lg font-bold text-sm transition ${
-                        newState?.pendingDelivery
-                          ? 'bg-blue-600 text-white hover:bg-blue-700'
-                          : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
-                      }`}
-                    >
-                      {newState?.pendingDelivery ? 'تسليم السورة' : 'تسجيل الجديد'}
-                    </a>
-                  )}
-                </div>
+                  );
+                })}
               </div>
-            );
-          })}
+            </section>
+          ))}
 
           {(!students || students.length === 0) && (
-            <p className="text-slate-400">ما فيه طلاب مرتبطين بحسابك.</p>
+            <p className="text-slate-400 text-center py-8">ما فيه طلاب مرتبطين بحسابك.</p>
           )}
         </div>
 
