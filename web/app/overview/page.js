@@ -42,7 +42,7 @@ export default async function OverviewPage() {
       .order('id', { ascending: true }),
     supabase
       .from('daily_records')
-      .select('student_id, start_surah, start_ayah, end_surah, end_ayah')
+      .select('student_id, type, start_surah, start_ayah, end_surah, end_ayah')
       .in('student_id', idsFilter),
     supabase.from('milestone_log').select('student_id, level_id, milestone_percent').in('student_id', idsFilter),
   ]);

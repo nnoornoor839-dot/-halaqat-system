@@ -46,7 +46,7 @@ async function recordSard(formData) {
       .maybeSingle(),
     supabase
       .from('daily_records')
-      .select('start_surah, start_ayah, end_surah, end_ayah')
+      .select('type, start_surah, start_ayah, end_surah, end_ayah')
       .eq('student_id', studentId),
   ]);
 

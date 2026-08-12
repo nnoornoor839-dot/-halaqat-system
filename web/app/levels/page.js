@@ -35,7 +35,7 @@ export default async function LevelsPage() {
       .order('id', { ascending: true }),
     supabase
       .from('daily_records')
-      .select('student_id, start_surah, start_ayah, end_surah, end_ayah')
+      .select('student_id, type, start_surah, start_ayah, end_surah, end_ayah')
       .in('student_id', idsFilter),
   ]);
 

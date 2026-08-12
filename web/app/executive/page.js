@@ -42,7 +42,7 @@ export default async function ExecutivePage() {
   ] = await Promise.all([
     supabase.from('students').select('id'),
     supabase.from('halaqat').select('id'),
-    supabase.from('daily_records').select('student_id, start_surah, start_ayah, end_surah, end_ayah'),
+    supabase.from('daily_records').select('student_id, start_surah, start_ayah, end_surah, end_ayah').eq('type', 'جديد'),
     supabase.from('attendance').select('attended'),
     supabase.from('financial_requests').select('total_amount'),
   ]);

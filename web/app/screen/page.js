@@ -32,7 +32,8 @@ export default async function ScreenPage() {
       .order('id', { ascending: true }),
     supabase
       .from('daily_records')
-      .select('student_id, date, start_surah, start_ayah, end_surah, end_ayah')
+      .select('student_id, type, date, start_surah, start_ayah, end_surah, end_ayah')
+      .eq('type', 'جديد')
       .in('student_id', idsFilter),
   ]);
 

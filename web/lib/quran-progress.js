@@ -1,6 +1,10 @@
 // حساب نسبة تقدم الطالب نحو هدفه المحدد (target)، عبر المحرك القرآني المعتمد
 // (quranEngine.js) بدل الحساب المبسط القديم — بنفس شكل النتيجة القديم
 // { percent, coveredInTarget, targetTotal } عشان ما تحتاج صفحات العرض تتغيّر.
+//
+// مهم: التقدم نحو الهدف (وبالتالي "جاهز للاختبار") يُحسب من تسجيلات "جديد" فقط.
+// المراجعة لا تُحتسب إنجازاً جديداً نحو تجاوز الهدف — عشان الاختبار يقيس حفظاً
+// فعلياً جديداً، لا مجرد لمس الآيات. records يجب أن تتضمن حقل type.
 import QuranEngine from './quranEngine';
 
 export function computeProgress(index, target, records) {
@@ -13,8 +17,10 @@ export function computeProgress(index, target, records) {
   );
   const targetSet = new Set(targetRange.ayahsToProcess);
 
+  const newRecords = records.filter((r) => r.type === 'جديد');
+
   const state = QuranEngine.createCoverageState();
-  for (const r of records) {
+  for (const r of newRecords) {
     const { ayahsToProcess } = QuranEngine.calculateRangeStats(
       index,
       r.start_surah,
