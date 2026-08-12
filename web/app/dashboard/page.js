@@ -10,6 +10,7 @@ const ROLE_LABELS = {
 // للمستخدم رابط لصفحة سيُمنع منها.
 const LINKS = [
   { page: 'teacher', href: '/teacher', label: 'تحضير اليوم', color: 'bg-emerald-600 hover:bg-emerald-700' },
+  { page: 'review', href: '/review', label: 'المراجعة', color: 'bg-sky-600 hover:bg-sky-700' },
   { page: 'overview', href: '/overview', label: 'نظرة عامة', color: 'bg-indigo-600 hover:bg-indigo-700' },
   { page: 'levels', href: '/levels', label: 'المستويات والاختبارات', color: 'bg-rose-600 hover:bg-rose-700' },
   { page: 'tickets', href: '/tickets', label: 'تذاكر الترفيه', color: 'bg-amber-500 hover:bg-amber-600' },

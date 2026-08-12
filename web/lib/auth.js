@@ -40,6 +40,7 @@ export async function requireRole(allowedRoles) {
 export const PAGE_ROLES = {
   teacher: ['teacher', 'supervisor', 'admin'],
   sard: ['teacher', 'supervisor', 'admin'],
+  review: ['teacher', 'supervisor', 'admin'],
   messages: ['teacher', 'supervisor', 'admin'],
   screen: ['teacher', 'supervisor', 'admin'],
   overview: ['supervisor', 'admin'],
