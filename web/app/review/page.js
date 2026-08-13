@@ -25,11 +25,15 @@ function computeState({ index, levels, records, passedLevelIds, examByLevel }) {
   const steps = buildCycleSteps(index, memorizedSet, levelNumber);
   const portion = portionForStep(index, memorizedSet, steps, reviewCount);
 
-  // المراجعة تتوقف أثناء التجهيز للاختبار: أنهى مدى مستواه ولم يُرصد نجاحه بعد،
-  // لأنه يراجع محفوظه كاملاً استعداداً للاختبار.
+  // المراجعة تتوقف أثناء التجهيز للاختبار الأول فقط: أنهى مدى مستواه ولم يُرصد له
+  // اختبار بعد، لأنه يراجع محفوظه كاملاً استعداداً له.
+  //
+  // الشرط `!currentExam` لا `!currentExam?.passed`: الطالب الراسب لديه اختبار
+  // مرصود، فلا يُعدّ في تجهيز أول، والمراجعة هي بالضبط ما يحتاجه قبل الإعادة —
+  // إيقافها عنه كان يعطّله تماماً (لا مراجعة ولا حفظ جديد).
   let awaitingExam = false;
   const currentExam = currentLevel ? examByLevel.get(currentLevel.id) : null;
-  if (currentLevel && !currentExam?.passed) {
+  if (currentLevel && !currentExam) {
     const { ayahsToProcess } = QuranEngine.calculateRangeStats(
       index,
       currentLevel.target_start_surah,
@@ -197,7 +201,7 @@ export default async function ReviewPage({ searchParams }) {
 
                         {awaitingExam ? (
                           <p className="text-sm text-amber-700 mt-1">
-                            ⏸️ المراجعة متوقفة — الطالب يجهّز لاختبار المستوى
+                            ⏸️ المراجعة متوقفة — الطالب يجهّز لاختبار مستواه
                           </p>
                         ) : !hasMemorized ? (
                           <p className="text-sm text-slate-400 mt-1">ما فيه محفوظ للمراجعة بعد</p>

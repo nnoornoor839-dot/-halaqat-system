@@ -132,7 +132,9 @@ export default async function OverviewPage() {
     const passedLevels = studentLevels.filter((l) => passedLevelIds.has(l.id));
     const memorized = buildMemorizedSet(quranIndex, newRecords, passedLevels);
     const cycleSteps = buildCycleSteps(quranIndex, memorized, level?.level_number ?? 1);
-    const pausedForExam = Boolean(newState?.isLevelComplete && !exam?.passed);
+    // متوقف للتجهيز للاختبار الأول فقط. الراسب لديه اختبار مرصود ودورته تعمل،
+    // فركود مراجعته تنبيه صحيح لا استثناء (نفس تصحيح شرط /review).
+    const pausedForExam = Boolean(newState?.isLevelComplete && !exam);
 
     let reviewStale = 0;
     if (cycleSteps.length > 0 && !pausedForExam) {
