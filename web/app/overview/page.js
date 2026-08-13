@@ -195,7 +195,65 @@ export default async function OverviewPage() {
           </div>
         )}
 
-        <div className="overflow-x-auto">
+        {/* الجوال: بطاقات. جدول ٦ أعمدة على شاشة صغيرة يفرض تمريراً أفقياً
+            يخفي عمود التنبيهات — وهو سبب وجود الصفحة. */}
+        <div className="flex flex-col gap-3 md:hidden">
+          {rows.map(({ student: s, level, progress, exam, attendance, flags }) => {
+            const urgent = flags.some((f) => f.tone === 'red');
+            return (
+              <div
+                key={s.id}
+                className={`rounded-xl p-3.5 border ${
+                  urgent ? 'border-red-300 bg-red-50/40' : 'border-slate-200'
+                }`}
+              >
+                <div className="flex items-baseline justify-between gap-2 mb-1">
+                  <span className="font-bold text-slate-800">{s.name}</span>
+                  <span className={`text-xs font-bold shrink-0 ${attendance.color}`}>
+                    {attendance.text}
+                  </span>
+                </div>
+
+                <p className="text-xs text-slate-400 mb-2">
+                  {s.halaqat?.name ?? '—'}
+                  {level && ` · ${levelName(level.level_number)}`}
+                  {exam?.passed && ` · ${exam.grade}`}
+                </p>
+
+                {progress && (
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="h-1.5 flex-1 bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-brand-500"
+                        style={{ width: `${progress.percent}%` }}
+                      />
+                    </div>
+                    <span className="text-xs text-slate-500 shrink-0">{progress.percent}%</span>
+                  </div>
+                )}
+
+                {flags.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {flags.map((f) => (
+                      <span
+                        key={f.key}
+                        className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${toneClass[f.tone]}`}
+                      >
+                        {f.label}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {(!students || students.length === 0) && (
+            <p className="py-6 text-center text-slate-400">ما فيه طلاب مرتبطين بحسابك.</p>
+          )}
+        </div>
+
+        <div className="overflow-x-auto hidden md:block">
           <table className="w-full text-right border-collapse text-sm">
             <thead>
               <tr className="border-b-2 border-slate-200 text-slate-600">

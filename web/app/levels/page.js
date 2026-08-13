@@ -133,7 +133,112 @@ export default async function LevelsPage() {
           </div>
         )}
 
-        <div className="overflow-x-auto">
+        {/* الجوال: بطاقات — أزرار الإجراء آخر عمود في الجدول، وهي أول ما يختفي
+            خلف التمرير الأفقي على شاشة صغيرة. */}
+        <div className="flex flex-col gap-3 md:hidden">
+          {rows.map(({ student: s, current, past, progress, exam, status }) => (
+            <div
+              key={s.id}
+              className={`rounded-xl p-3.5 border ${
+                status.overdue ? 'border-red-300 bg-red-50/40' : 'border-slate-200'
+              }`}
+            >
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="font-bold text-slate-800">{s.name}</span>
+                <span className="text-xs text-slate-400 shrink-0">{s.halaqat?.name ?? '—'}</span>
+              </div>
+
+              {past.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-1.5">
+                  {past.map((p) => {
+                    const pe = examByLevel.get(p.id);
+                    return (
+                      <span
+                        key={p.id}
+                        title={`${levelName(p.level_number)}${pe ? ` — ${pe.grade}` : ''}`}
+                        className="text-[11px] bg-slate-100 text-slate-500 rounded px-1.5 py-0.5"
+                      >
+                        {p.level_number}
+                        {pe?.passed ? ' ✅' : ''}
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
+
+              {current ? (
+                <p className="text-sm text-slate-600 mt-2">
+                  <span className="font-bold text-slate-700">
+                    {levelName(current.level_number)}
+                  </span>
+                  {current.semester && (
+                    <span className="text-xs text-slate-400"> · {current.semester}</span>
+                  )}
+                  <br />
+                  <span className="text-xs">
+                    من {surahName(current.target_start_surah)}:{current.target_start_ayah} إلى{' '}
+                    {surahName(current.target_end_surah)}:{current.target_end_ayah}
+                  </span>
+                </p>
+              ) : (
+                <p className="text-sm text-slate-400 mt-2">بلا مستوى</p>
+              )}
+
+              <div className="flex items-center gap-2 mt-2">
+                {progress && (
+                  <>
+                    <div className="h-1.5 flex-1 bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-brand-500"
+                        style={{ width: `${progress.percent}%` }}
+                      />
+                    </div>
+                    <span className="text-xs text-slate-500 shrink-0">{progress.percent}%</span>
+                  </>
+                )}
+              </div>
+
+              <p className={`text-sm mt-2 ${status.color}`}>{status.label}</p>
+
+              <div className="flex flex-wrap gap-2 mt-3">
+                {(status.key === 'ready' || status.key === 'failed') && current && (
+                  <a
+                    href={`/levels/exam?levelId=${current.id}`}
+                    className="text-xs font-bold bg-blue-50 text-blue-700 rounded-lg px-3 py-2 transition"
+                  >
+                    تسجيل نتيجة اختبار
+                  </a>
+                )}
+                {status.key === 'passed' && exam && (
+                  <a
+                    href={`/levels/certificate?examId=${exam.id}`}
+                    className="text-xs font-bold bg-brand-50 text-brand-700 rounded-lg px-3 py-2 transition"
+                  >
+                    عرض الشهادة
+                  </a>
+                )}
+                <a
+                  href={`/levels/assign?studentId=${s.id}`}
+                  className="text-xs font-bold bg-slate-100 text-slate-600 rounded-lg px-3 py-2 transition"
+                >
+                  {current ? 'تعيين المستوى التالي' : 'تعيين المستوى'}
+                </a>
+                <a
+                  href={`/levels/assign?studentId=${s.id}&mode=historical`}
+                  className="text-xs font-bold bg-amber-50 text-amber-700 rounded-lg px-3 py-2 transition"
+                >
+                  تسجيل مستوى سابق
+                </a>
+              </div>
+            </div>
+          ))}
+
+          {(!students || students.length === 0) && (
+            <p className="py-6 text-center text-slate-400">ما فيه طلاب مرتبطين بحسابك.</p>
+          )}
+        </div>
+
+        <div className="overflow-x-auto hidden md:block">
           <table className="w-full text-right border-collapse">
             <thead>
               <tr className="border-b-2 border-slate-200 text-slate-600 text-sm">
