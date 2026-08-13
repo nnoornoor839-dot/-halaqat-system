@@ -1,10 +1,23 @@
 -- ============================================================
--- نظام الحلقات — مخطط قاعدة البيانات الكامل
+-- نظام الحلقات — مخطط قاعدة البيانات
 -- ============================================================
--- هذا الملف ينشئ الجداول التسعة اللي اتفقنا عليها بالنقاش.
--- الترتيب مهم: كل جدول ينشأ بعد الجداول اللي يرتبط بها (references)،
--- لأن قاعدة البيانات ما تقبل ربط جدول بجدول غير موجود بعد.
+-- هذا الملف مُعاد بناؤه من القاعدة الحيّة (information_schema.columns
+-- و pg_constraint)، لا من الذاكرة. فما فيه هو ما هو مطبَّق فعلاً.
+--
+-- الترتيب مهم: كل جدول بعد ما يرتبط به، لأن القاعدة ترفض ربط جدول
+-- بجدول غير موجود بعد.
+--
+-- ملفات مكمّلة تُطبَّق بعد هذا الملف بالترتيب:
+--   1. rls-policies.sql         الدوال المساعدة وسياسات RLS
+--   2. rls-restrictive.sql      تضييق صلاحيات التعديل والحذف
+--   3. surah-ayah-counts.sql    جدول عدد آيات السور المرجعي
+--   4. triggers.sql             حرّاس daily_records
+--   5. trigger-ayah-bounds.sql  النسخة النافذة من دالة التحقق
+--
+-- constraints.sql لا يُشغَّل على قاعدة جديدة — قيوده مدمجة هنا أصلاً،
+-- وهو مخصص لترقية قاعدة قائمة.
 -- ============================================================
+
 
 -- 1) الفروع: عزل بيانات بنين/بنات
 create table branches (
@@ -12,22 +25,28 @@ create table branches (
   name text not null
 );
 
--- 2) المستخدمين: معلم / مشرف / مدير
+
+-- 2) المستخدمون: معلم / مشرف / مدير
+-- id من نوع uuid لا serial، لأنه نفس معرّف حساب Supabase Auth. هذا شرط
+-- لعمل تسجيل الدخول: auth.uid() تُرجع uuid، وكل سياسات RLS تقارن به.
+-- رقم صحيح هنا يعني نظاماً لا يمكن الدخول إليه إطلاقاً.
 create table users (
-  id serial primary key,
+  id uuid primary key references auth.users(id) on delete cascade,
   name text not null,
   role text not null check (role in ('teacher', 'supervisor', 'admin')),
-  branch_id int references branches(id),  -- فارغ (NULL) = المدير يشوف كل الفروع
+  branch_id int references branches(id),  -- فارغ (NULL) = المدير يرى كل الفروع
   created_at timestamptz default now()
 );
+
 
 -- 3) الحلقات: كل حلقة لها معلم مسؤول
 create table halaqat (
   id serial primary key,
   name text not null,
-  teacher_id int references users(id),
+  teacher_id uuid references users(id),
   branch_id int references branches(id) not null
 );
+
 
 -- 4) الطلاب
 create table students (
@@ -35,17 +54,37 @@ create table students (
   name text not null,
   branch_id int references branches(id) not null,
   halaqah_id int references halaqat(id),
+  parent_phone text,                 -- تستخدمه صفحة الرسائل لمراسلة ولي الأمر
   created_at timestamptz default now()
 );
 
--- 5) السجلات اليومية — قلب النظام القرآني
--- نخزّن المدى الخام (من سورة:آية إلى سورة:آية)، لا رقماً مجمّعاً،
--- عشان محرك quranEngine.js يحسب التغطية الحقيقية بلا تضخم.
+
+-- 5) الحضور
+-- القيد الفريد على (student_id, date) شرط لعمل upsert في صفحة التحضير:
+-- الضغط على «حاضر» ثم «غائب» يُعدّل نفس الصف بدل أن يضيف صفاً ثانياً.
+-- notified يمنع تكرار رسالة الغياب لولي الأمر.
+create table attendance (
+  id serial primary key,
+  student_id int references students(id) not null,
+  date date not null,
+  attended boolean not null default false,
+  early_arrival boolean not null default false,
+  notified boolean not null default false,
+  created_at timestamptz default now(),
+  unique (student_id, date)
+);
+
+
+-- 6) السجلات اليومية — قلب النظام القرآني
+-- نخزّن المدى الخام (من سورة:آية إلى سورة:آية) لا رقماً مجمّعاً، ليحسب
+-- محرك quranEngine.js التغطية الحقيقية بلا تضخم.
+-- قيود type والسرد التراكمي وحدود الآيات مفروضة بمُشغِّل لا بـ check،
+-- لأنها تحتاج مراجعة جداول أخرى. انظر triggers.sql.
 create table daily_records (
   id serial primary key,
   student_id int references students(id) not null,
   date date not null,
-  type text not null,              -- اسم حر: 'جديد' أو 'مراجعة' (المحرك يقبل أي اسم)
+  type text not null,              -- 'جديد' أو 'مراجعة'
   start_surah int not null,
   start_ayah int not null,
   end_surah int not null,
@@ -53,49 +92,46 @@ create table daily_records (
   created_at timestamptz default now()
 );
 
--- 6) المستوى المستهدف لكل طالب/فصل
--- نخزّن الهدف نفسه فقط — نسبة التقدم تُحسب لحظياً من daily_records،
--- لا تُخزَّن أبداً (تجنّباً لتكرار خطأ "المهرة" بأرقام تفقد ارتباطها بالواقع).
--- level_number يحدده النظام تلقائياً حسب ترتيب مستويات الطالب (الأول، الثاني، …).
--- يُستخدم لتحديد حجم وحدة المراجعة، ولتحديد متى تنطبق بوابة تسليم السورة.
+
+-- 7) المستوى المستهدف لكل طالب
+-- نخزّن الهدف فقط — نسبة التقدم تُحسب لحظياً من daily_records ولا
+-- تُخزَّن أبداً، تجنّباً لأرقام تفقد ارتباطها بالواقع.
+-- level_number not null + unique هما ما يجعل «المستوى الحالي = الأعلى
+-- رقماً» حقيقة تفرضها القاعدة لا عرفاً في الكود. عليه يعتمد مُشغِّل قفل
+-- ما بعد الاختبار.
 create table student_levels (
   id serial primary key,
   student_id int references students(id) not null,
-  level_number int,
+  level_number int not null,
   semester text not null,
   target_start_surah int not null,
   target_start_ayah int not null,
   target_end_surah int not null,
-  target_end_ayah int not null
+  target_end_ayah int not null,
+  unique (student_id, level_number)
 );
 
--- 7) سجل المحطات — لتفادي إرسال نفس رسالة التهنئة مرتين
--- level_id يربط كل محطة بمستواها المحدد (وليس بالطالب فقط)، عشان لو انعطى
--- الطالب هدف جديد بعد إنهاء هدف قديم، تبدأ محطاته (25/50/75/100%) من جديد
--- بدل ما يظن النظام إنها مكررة من الهدف القديم.
-create table milestone_log (
-  id serial primary key,
-  student_id int references students(id) not null,
-  level_id int references student_levels(id),
-  milestone_percent int not null,
-  notified_at timestamptz default now()
-);
 
--- 7ب) نتائج اختبارات نهاية المستوى — كل محاولة اختبار سجل مستقل (يدعم إعادة الاختبار)
+-- 8) نتائج اختبارات نهاية المستوى
+-- كل محاولة سجل مستقل (يدعم إعادة الاختبار بعد الرسوب).
+-- grade يُخزَّن ولا يُشتق لاحقاً: تعديل سلّم التقديرات مستقبلاً يجب ألا
+-- يغيّر شهادة صادرة.
 create table exam_results (
   id serial primary key,
   level_id int references student_levels(id) not null,
   exam_date date not null,
   score numeric not null,
-  grade text not null,          -- التقدير المشتق من الدرجة وقت الرصد (لا يُعاد حسابه لاحقاً)
+  grade text not null,
   passed boolean not null,
-  retry_date date,              -- يُملأ فقط لو رسب الطالب
+  retry_date date,                 -- يُملأ فقط عند الرسوب
   created_at timestamptz default now()
 );
 
--- 7ج) تسليم السور — كل محاولة تسليم صف مستقل (تدعم إعادة التسليم بعد الخطأ)
--- الطالب لا ينتقل للسورة التالية في الجديد إلا بوجود صف approved = true لسورته
--- المكتملة. تنطبق من المستوى الثاني فما فوق.
+
+-- 9) تسليم السور
+-- كل محاولة صف مستقل (تدعم إعادة التسليم بعد الرفض). الطالب لا ينتقل
+-- للسورة التالية إلا بصف approved = true لسورته المكتملة. تنطبق من
+-- المستوى الثاني فما فوق.
 create table surah_deliveries (
   id serial primary key,
   student_id int references students(id) not null,
@@ -105,15 +141,34 @@ create table surah_deliveries (
   created_at timestamptz default now()
 );
 
--- 8) تذاكر الترفيه الأسبوعية — وثيقة رسمية مُصدرة، لا تُعاد حسابها لاحقاً
+
+-- 10) سجل المحطات — لتفادي تكرار رسالة التهنئة
+-- level_id يربط المحطة بمستواها لا بالطالب وحده، حتى تبدأ محطات
+-- (25/50/75/100%) من جديد مع كل مستوى بدل أن تُحسب مكررة.
+create table milestone_log (
+  id serial primary key,
+  student_id int references students(id) not null,
+  level_id int references student_levels(id),
+  milestone_percent int not null,
+  notified boolean not null default false,
+  notified_at timestamptz default now()
+);
+
+
+-- 11) تذاكر الترفيه الأسبوعية — وثيقة صادرة لا تُعاد حسابها
+-- القيد الفريد يمنع صدور تذكرتين لطالب في أسبوع واحد. التطبيق يفحص ذلك
+-- قبل الإدراج، لكن الفحص «اقرأ ثم اكتب» يسمح بالتكرار لو ضغط مشرفان في
+-- اللحظة نفسها — والتكرار هنا يعني مطالبة مالية مضاعفة.
 create table weekly_tickets (
   id serial primary key,
   student_id int references students(id) not null,
   week_start date not null,
-  issued_at timestamptz default now()
+  issued_at timestamptz default now(),
+  unique (student_id, week_start)
 );
 
--- 9) طلبات الاعتماد المالي — وثيقة رسمية بمبلغ ثابت وقت الاعتماد
+
+-- 12) طلبات الاعتماد المالي — وثيقة بمبلغ ثابت وقت الاعتماد
 create table financial_requests (
   id serial primary key,
   branch_id int references branches(id) not null,
