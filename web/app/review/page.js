@@ -59,7 +59,7 @@ async function recordReview(formData) {
         'id, level_number, target_start_surah, target_start_ayah, target_end_surah, target_end_ayah'
       )
       .eq('student_id', studentId)
-      .order('level_number', { ascending: true }),
+      .order('level_number', { ascending: true, nullsFirst: true }).order('id', { ascending: true }),
     supabase
       .from('daily_records')
       .select('type, start_surah, start_ayah, end_surah, end_ayah')
@@ -119,7 +119,7 @@ export default async function ReviewPage({ searchParams }) {
         'id, student_id, level_number, target_start_surah, target_start_ayah, target_end_surah, target_end_ayah'
       )
       .in('student_id', idsFilter)
-      .order('level_number', { ascending: true }),
+      .order('level_number', { ascending: true, nullsFirst: true }).order('id', { ascending: true }),
     supabase
       .from('daily_records')
       .select('student_id, type, date, start_surah, start_ayah, end_surah, end_ayah')

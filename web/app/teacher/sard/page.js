@@ -28,7 +28,7 @@ async function loadState(supabase, studentId) {
           'id, level_number, target_start_surah, target_start_ayah, target_end_surah, target_end_ayah'
         )
         .eq('student_id', studentId)
-        .order('level_number', { ascending: false })
+        .order('level_number', { ascending: false, nullsFirst: false }).order('id', { ascending: false })
         .limit(1)
         .maybeSingle(),
       supabase

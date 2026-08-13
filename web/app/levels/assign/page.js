@@ -40,7 +40,7 @@ async function assignLevel(formData) {
     .from('student_levels')
     .select('level_number')
     .eq('student_id', studentId)
-    .order('level_number', { ascending: false })
+    .order('level_number', { ascending: false, nullsFirst: false }).order('id', { ascending: false })
     .limit(1)
     .maybeSingle();
 
@@ -98,7 +98,7 @@ export default async function AssignLevelPage({ searchParams }) {
       .from('student_levels')
       .select('level_number')
       .eq('student_id', studentId)
-      .order('level_number', { ascending: false })
+      .order('level_number', { ascending: false, nullsFirst: false }).order('id', { ascending: false })
       .limit(1)
       .maybeSingle(),
   ]);
