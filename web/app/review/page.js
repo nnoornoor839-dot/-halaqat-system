@@ -25,15 +25,12 @@ function computeState({ index, levels, records, passedLevelIds, examByLevel }) {
   const steps = buildCycleSteps(index, memorizedSet, levelNumber);
   const portion = portionForStep(index, memorizedSet, steps, reviewCount);
 
-  // المراجعة تتوقف أثناء التجهيز للاختبار الأول فقط: أنهى مدى مستواه ولم يُرصد له
-  // اختبار بعد، لأنه يراجع محفوظه كاملاً استعداداً له.
-  //
-  // الشرط `!currentExam` لا `!currentExam?.passed`: الطالب الراسب لديه اختبار
-  // مرصود، فلا يُعدّ في تجهيز أول، والمراجعة هي بالضبط ما يحتاجه قبل الإعادة —
-  // إيقافها عنه كان يعطّله تماماً (لا مراجعة ولا حفظ جديد).
+  // دورة المراجعة تتوقف طوال فترة التجهيز للاختبار — سواء الاختبار الأول أو
+  // الإعادة بعد الرسوب — لأن الطالب حينها يراجع محفوظه كاملاً يومياً خارج
+  // الدورة. فالشرط `!passed` مقصود: الراسب ما زال مجهِّزاً حتى ينجح.
   let awaitingExam = false;
   const currentExam = currentLevel ? examByLevel.get(currentLevel.id) : null;
-  if (currentLevel && !currentExam) {
+  if (currentLevel && !currentExam?.passed) {
     const { ayahsToProcess } = QuranEngine.calculateRangeStats(
       index,
       currentLevel.target_start_surah,
