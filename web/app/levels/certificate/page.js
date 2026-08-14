@@ -98,7 +98,9 @@ export default async function CertificatePage({ searchParams }) {
           <tbody>
             <tr className="border-b border-slate-200">
               <td className="py-3 font-bold text-slate-600">الدرجة</td>
-              <td className="py-3 text-left font-black">{exam.score} / 100</td>
+              <td className="py-3 text-left font-black" dir="ltr">
+                {exam.score} / 100
+              </td>
             </tr>
             <tr className="bg-slate-50">
               <td className="py-3 font-bold text-slate-800 text-lg">التقدير</td>
