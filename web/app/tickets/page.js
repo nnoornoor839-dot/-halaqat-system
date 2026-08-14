@@ -1,20 +1,8 @@
 import { revalidatePath } from 'next/cache';
 import { requireRole, PAGE_ROLES } from '@/lib/auth';
+import { getWorkWeekDates } from '@/lib/work-days';
 
 const DAY_NAMES = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء'];
-
-function getWorkWeekDates() {
-  const today = new Date();
-  const sunday = new Date(today);
-  sunday.setDate(today.getDate() - today.getDay());
-  const dates = [];
-  for (let i = 0; i < 4; i++) {
-    const d = new Date(sunday);
-    d.setDate(sunday.getDate() + i);
-    dates.push(d.toISOString().slice(0, 10));
-  }
-  return dates;
-}
 
 async function issueTickets(formData) {
   'use server';

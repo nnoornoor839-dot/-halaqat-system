@@ -35,15 +35,25 @@ export function previousWorkDays(todayISO, count) {
   return days;
 }
 
-/** تواريخ أسبوع العمل الحالي (الأحد إلى الأربعاء). */
+/**
+ * تواريخ أسبوع العمل الحالي (الأحد إلى الأربعاء).
+ *
+ * الحساب كله بـ UTC كبقية دوال الملف. النسخة السابقة كانت تقرأ اليوم
+ * بالتوقيت المحلي (getDate و getDay) ثم تُخرج بـ toISOString وهي UTC،
+ * فتختلط المرجعيتان. لا فرق على Vercel لأن خوادمه تعمل بـ UTC، لكن أي
+ * بيئة بمنطقة زمنية أخرى كانت ستزيح الأسبوع يوماً كاملاً بصمت، فتُحتسب
+ * التذاكر على أيام خاطئة.
+ */
 export function getWorkWeekDates(today = new Date()) {
-  const sunday = new Date(today);
-  sunday.setDate(today.getDate() - today.getDay());
+  const cursor = new Date(
+    Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate())
+  );
+  cursor.setUTCDate(cursor.getUTCDate() - cursor.getUTCDay()); // الرجوع للأحد
+
   const dates = [];
   for (let i = 0; i < 4; i++) {
-    const d = new Date(sunday);
-    d.setDate(sunday.getDate() + i);
-    dates.push(d.toISOString().slice(0, 10));
+    dates.push(cursor.toISOString().slice(0, 10));
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
   }
   return dates;
 }
