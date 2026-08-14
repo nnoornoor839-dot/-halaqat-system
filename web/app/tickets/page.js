@@ -86,7 +86,46 @@ export default async function TicketsPage() {
           أسبوع {weekDates[0]} إلى {weekDates[3]} — الشرط: حضور مبكر + سرد يومي طول أيام العمل
         </p>
 
-        <div className="overflow-x-auto">
+        {/* الجوال: بطاقات. جدول ٦ أعمدة (الاسم + ٤ أيام + الاستحقاق) يضيق على
+            شاشة صغيرة رغم التمرير الأفقي، فتصير أيام الأسبوع نقاطاً موسومة
+            باسم اليوم بدل عمود مستقل لكل يوم. */}
+        <div className="flex flex-col gap-3 md:hidden">
+          {rows.map(({ student, dayStatus, eligible, issued }) => (
+            <div key={student.id} className="rounded-xl p-3.5 border border-slate-200">
+              <div className="flex items-baseline justify-between gap-2 mb-2.5">
+                <span className="font-bold text-slate-800">{student.name}</span>
+                {issued ? (
+                  <span className="text-brand-600 font-bold text-xs shrink-0">🎟️ صدرت</span>
+                ) : eligible ? (
+                  <span className="text-amber-600 font-bold text-xs shrink-0">مستحق</span>
+                ) : (
+                  <span className="text-slate-400 text-xs shrink-0">غير مستحق</span>
+                )}
+              </div>
+
+              <div className="flex gap-3">
+                {dayStatus.map((ok, i) => (
+                  <div key={i} className="flex flex-col items-center gap-1">
+                    <span
+                      className={`w-6 h-6 flex items-center justify-center rounded-full text-xs ${
+                        ok ? 'bg-brand-100 text-brand-700' : 'bg-slate-100 text-slate-300'
+                      }`}
+                    >
+                      {ok ? '✓' : '—'}
+                    </span>
+                    <span className="text-[10px] text-slate-400">{DAY_NAMES[i]}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+
+          {rows.length === 0 && (
+            <p className="py-6 text-center text-slate-400">ما فيه طلاب مرتبطين بحسابك.</p>
+          )}
+        </div>
+
+        <div className="overflow-x-auto hidden md:block">
           <table className="w-full text-right border-collapse text-sm">
             <thead>
               <tr className="border-b-2 border-slate-200 text-slate-600">
