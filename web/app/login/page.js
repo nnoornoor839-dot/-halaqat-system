@@ -34,7 +34,7 @@ export default function LoginPage() {
     <div dir="rtl" className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
       <form
         onSubmit={handleLogin}
-        className="w-full max-w-sm bg-white rounded-2xl shadow-md border border-slate-200 p-8 flex flex-col gap-5"
+        className="w-full max-w-sm bg-white rounded-2xl shadow-md border border-slate-200 p-6 sm:p-8 flex flex-col gap-5"
       >
         <div className="flex flex-col items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}

@@ -47,8 +47,8 @@ export default async function FinancePage() {
 
   if (!profile?.branch_id) {
     return (
-      <div dir="rtl" className="bg-slate-50 p-8">
-        <div className="max-w-xl mx-auto bg-white rounded-2xl shadow-md border border-slate-200 p-8">
+      <div dir="rtl" className="bg-slate-50 p-4 sm:p-8">
+        <div className="max-w-xl mx-auto bg-white rounded-2xl shadow-md border border-slate-200 p-5 sm:p-8">
           <h1 className="text-2xl font-bold text-slate-800 mb-4">حاسبة الميزانية</h1>
           <p className="text-slate-500">
             هذي الميزة مصممة حالياً لحساب المشرف (المرتبط بفرع محدد). سجّل دخول بحساب مشرف
@@ -82,8 +82,8 @@ export default async function FinancePage() {
   const ticketCount = tickets?.length ?? 0;
 
   return (
-    <div dir="rtl" className="bg-slate-50 p-8">
-      <div className="max-w-xl mx-auto bg-white rounded-2xl shadow-md border border-slate-200 p-8">
+    <div dir="rtl" className="bg-slate-50 p-4 sm:p-8">
+      <div className="max-w-xl mx-auto bg-white rounded-2xl shadow-md border border-slate-200 p-5 sm:p-8">
         <h1 className="text-2xl font-bold text-slate-800 mb-1">حاسبة الميزانية</h1>
         <p className="text-slate-500 mb-6">
           أسبوع {weekDates[0]} إلى {weekDates[3]}

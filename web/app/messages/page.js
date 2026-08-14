@@ -85,8 +85,8 @@ ${ASSOCIATION_NAME}`;
   const items = [...absenceItems, ...milestoneItems];
 
   return (
-    <div dir="rtl" className="bg-slate-50 p-8">
-      <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-md border border-slate-200 p-8">
+    <div dir="rtl" className="bg-slate-50 p-4 sm:p-8">
+      <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-md border border-slate-200 p-5 sm:p-8">
         <h1 className="text-2xl font-bold text-slate-800 mb-1">رسائل اليوم</h1>
         <p className="text-slate-500 mb-6">{todayLabel}</p>
 

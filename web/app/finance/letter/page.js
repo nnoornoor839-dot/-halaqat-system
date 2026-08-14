@@ -40,7 +40,7 @@ export default async function FinanceLetterPage({ searchParams }) {
   });
 
   return (
-    <div dir="rtl" className="bg-slate-100 p-8 print:bg-white print:p-0">
+    <div dir="rtl" className="bg-slate-100 p-4 sm:p-8 print:bg-white print:p-0">
       <style>{`
         @media print {
           .no-print { display: none !important; }
@@ -55,7 +55,7 @@ export default async function FinanceLetterPage({ searchParams }) {
         <PrintButton />
       </div>
 
-      <div className="max-w-2xl mx-auto bg-white shadow-md border border-slate-300 p-10 print:shadow-none print:border-0">
+      <div className="max-w-2xl mx-auto bg-white shadow-md border border-slate-300 p-6 sm:p-10 print:shadow-none print:border-0">
         <div className="text-center border-b-4 border-brand-600 pb-5 mb-8 flex flex-col items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo.png" alt={ASSOCIATION_NAME} className="h-20 w-auto" />
@@ -97,14 +97,17 @@ export default async function FinanceLetterPage({ searchParams }) {
           </tbody>
         </table>
 
-        <div className="flex justify-between mt-16 text-slate-600">
-          <div className="text-center">
+        {/* سطر التوقيعات: عمودان على الورق والحاسوب، وواحد تحت الآخر على
+            الجوال. وخط التوقيع حدٌّ سفلي لا شرطات، فالشرطات عرضها ثابت
+            يتمدّد خارج الشاشة الضيقة، والحدّ يتقلّص مع المتاح. */}
+        <div className="flex flex-col sm:flex-row print:flex-row justify-between gap-10 sm:gap-6 mt-16 text-slate-600">
+          <div className="text-center flex-1">
             <p className="mb-12">توقيع المشرف</p>
-            <p>____________________</p>
+            <div className="border-b border-slate-400 mx-auto max-w-[200px]" />
           </div>
-          <div className="text-center">
+          <div className="text-center flex-1">
             <p className="mb-12">اعتماد المدير التنفيذي</p>
-            <p>____________________</p>
+            <div className="border-b border-slate-400 mx-auto max-w-[200px]" />
           </div>
         </div>
       </div>

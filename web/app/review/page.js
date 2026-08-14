@@ -166,8 +166,8 @@ export default async function ReviewPage({ searchParams }) {
   }
 
   return (
-    <div dir="rtl" className="bg-slate-50 p-8">
-      <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow-md border border-slate-200 p-8">
+    <div dir="rtl" className="bg-slate-50 p-4 sm:p-8">
+      <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow-md border border-slate-200 p-5 sm:p-8">
         <h1 className="text-2xl font-bold text-slate-800 mb-1">المراجعة</h1>
         <p className="text-slate-500 mb-6">نصيب اليوم محسوب تلقائياً لكل طالب — {today}</p>
 
