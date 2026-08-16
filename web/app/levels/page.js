@@ -2,11 +2,8 @@ import { SURAHS } from '@/lib/quran-surahs';
 import { computeProgress } from '@/lib/quran-progress';
 import { buildQuranIndex } from '@/lib/quran-index';
 import { levelName } from '@/lib/level-name';
-import { countWorkDaysBetween } from '@/lib/work-days';
+import { countWorkDaysBetween, EXAM_DELAY_WORK_DAYS } from '@/lib/work-days';
 import { requireRole, PAGE_ROLES } from '@/lib/auth';
-
-// الطالب يتوقف عن الجديد والمراجعة أثناء التجهيز للاختبار، فتأخّره يعطّله تماماً.
-const EXAM_DELAY_WORK_DAYS = 3;
 
 function surahName(num) {
   return SURAHS.find((s) => s.number === num)?.name ?? num;

@@ -4,11 +4,13 @@ import { computeNewMemorizationState } from '@/lib/new-memorization';
 import { buildMemorizedSet, buildCycleSteps } from '@/lib/review-cycle';
 import { SURAHS } from '@/lib/quran-surahs';
 import { levelName } from '@/lib/level-name';
-import { countWorkDaysBetween, previousWorkDays } from '@/lib/work-days';
+import {
+  countWorkDaysBetween,
+  previousWorkDays,
+  EXAM_DELAY_WORK_DAYS,
+  STALE_REVIEW_WORK_DAYS,
+} from '@/lib/work-days';
 import { requireRole, PAGE_ROLES } from '@/lib/auth';
-
-const EXAM_DELAY_WORK_DAYS = 3;
-const STALE_REVIEW_WORK_DAYS = 3;
 
 function surahName(num) {
   return SURAHS.find((s) => s.number === num)?.name ?? num;

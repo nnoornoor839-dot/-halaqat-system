@@ -5,7 +5,11 @@ import { buildQuranIndex } from '@/lib/quran-index';
 import { computeNewMemorizationState } from '@/lib/new-memorization';
 import { SURAHS } from '@/lib/quran-surahs';
 import { levelName } from '@/lib/level-name';
-import { previousWorkDays } from '@/lib/work-days';
+import {
+  previousWorkDays,
+  countWorkDaysBetween,
+  EXAM_DELAY_WORK_DAYS,
+} from '@/lib/work-days';
 import { requireRole, PAGE_ROLES } from '@/lib/auth';
 
 function surahName(num) {
@@ -61,7 +65,7 @@ export default async function TeacherPage({ searchParams }) {
       .order('level_number', { ascending: true, nullsFirst: true }).order('id', { ascending: true }),
     supabase
       .from('daily_records')
-      .select('student_id, type, start_surah, start_ayah, end_surah, end_ayah')
+      .select('student_id, type, date, start_surah, start_ayah, end_surah, end_ayah')
       .in('student_id', idsFilter),
   ]);
 
@@ -128,13 +132,32 @@ export default async function TeacherPage({ searchParams }) {
         )
       : null;
 
+    const exam = level ? examByLevel.get(level.id) : null;
+
+    // تأخّر الاختبار: الطالب أتمّ مستواه ولم يُرصد له اختبار. يُحسب من تاريخ
+    // آخر تسجيل جديد لأن التسجيل يُقفل بعد الإتمام، فآخر سرد هو ما أتمّ المستوى.
+    // نفس حساب /levels و/overview — المعلم يحتاج رؤيته كي يذكّر المشرف.
+    let examOverdue = 0;
+    if (newState?.isLevelComplete && !exam) {
+      const dates = records
+        .filter((r) => r.type === 'جديد' && r.date)
+        .map((r) => r.date)
+        .sort();
+      const readySince = dates[dates.length - 1];
+      if (readySince) {
+        const waited = countWorkDaysBetween(readySince, today);
+        if (waited > EXAM_DELAY_WORK_DAYS) examOverdue = waited;
+      }
+    }
+
     const key = s.halaqat?.name ?? 'بلا حلقة';
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push({
       student: s,
       level,
       newState,
-      exam: level ? examByLevel.get(level.id) : null,
+      exam,
+      examOverdue,
       progress: level ? computeProgress(quranIndex, level, records) : null,
       attendance: todayAttendance.get(s.id) ?? null,
       streak: absenceStreak(s.id),
@@ -175,13 +198,13 @@ export default async function TeacherPage({ searchParams }) {
               </h2>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {cards.map(({ student: s, level, newState, exam, progress, attendance, streak }) => {
+                {cards.map(({ student: s, level, newState, exam, examOverdue, progress, attendance, streak }) => {
                   const isAbsent = attendance?.attended === false;
                   const isPresent = attendance?.attended === true && !attendance?.early_arrival;
                   const isEarly = attendance?.attended === true && attendance?.early_arrival === true;
 
                   const border =
-                    streak >= 2
+                    streak >= 2 || examOverdue
                       ? 'border-red-400 border-2'
                       : streak === 1
                         ? 'border-amber-400 border-2'
@@ -238,9 +261,15 @@ export default async function TeacherPage({ searchParams }) {
                             🔒 بانتظار تسليم {surahName(newState.pendingDelivery)}
                           </span>
                         ) : newState?.isLevelComplete ? (
-                          <span className="inline-block bg-amber-100 text-amber-800 font-bold px-2 py-1 rounded-full">
-                            🏆 جاهز للاختبار
-                          </span>
+                          examOverdue ? (
+                            <span className="inline-block bg-red-100 text-red-800 font-bold px-2 py-1 rounded-full">
+                              ⚠️ جاهز للاختبار منذ {examOverdue} أيام عمل — ذكّر المشرف
+                            </span>
+                          ) : (
+                            <span className="inline-block bg-amber-100 text-amber-800 font-bold px-2 py-1 rounded-full">
+                              🏆 جاهز للاختبار
+                            </span>
+                          )
                         ) : newState?.currentSurah ? (
                           <span className="text-slate-500">
                             {surahName(newState.currentSurah)}
