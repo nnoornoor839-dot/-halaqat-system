@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { SURAHS } from '@/lib/quran-surahs';
 import { scoreToGrade, isPassing } from '@/lib/exam-grade';
+import { readinessState } from '@/lib/exam-readiness';
 import { requireRole, PAGE_ROLES } from '@/lib/auth';
 
 function surahName(num) {
@@ -24,6 +25,21 @@ async function recordExam(formData) {
   const retryDate = !passed && retryDateInput ? retryDateInput : null;
 
   const { supabase } = await requireRole(PAGE_ROLES.levels);
+
+  // بوابة تأكيد المعلم. الإجراء نقطة وصول مستقلة عن الصفحة: إخفاء الزر في
+  // /levels لا يمنع طلباً مباشراً، فيُعاد التحقق هنا من الحالة الحيّة.
+  // ولا يُقبل التأكيد إن سبقه اختبار — فالراسب يحتاج تأكيداً جديداً للإعادة.
+  const [{ data: readyRows }, { data: priorExams }] = await Promise.all([
+    supabase.from('exam_readiness').select('id, action, acted_at').eq('level_id', levelId),
+    supabase.from('exam_results').select('id, created_at').eq('level_id', levelId),
+  ]);
+
+  if (!readinessState(readyRows ?? [], priorExams ?? []).confirmed) {
+    redirect(
+      `/levels?error=${encodeURIComponent('لا يُرصد اختبار قبل أن يؤكد المعلم جاهزية الطالب')}`
+    );
+  }
+
   const { data, error } = await supabase
     .from('exam_results')
     .insert({ level_id: levelId, exam_date: examDate, score, grade, passed, retry_date: retryDate })

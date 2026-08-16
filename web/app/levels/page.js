@@ -3,13 +3,15 @@ import { computeProgress } from '@/lib/quran-progress';
 import { buildQuranIndex } from '@/lib/quran-index';
 import { levelName } from '@/lib/level-name';
 import { countWorkDaysBetween, EXAM_DELAY_WORK_DAYS } from '@/lib/work-days';
+import { readinessState, groupByLevel } from '@/lib/exam-readiness';
 import { requireRole, PAGE_ROLES } from '@/lib/auth';
 
 function surahName(num) {
   return SURAHS.find((s) => s.number === num)?.name ?? num;
 }
 
-export default async function LevelsPage() {
+export default async function LevelsPage({ searchParams }) {
+  const params = await searchParams;
   const { supabase } = await requireRole(PAGE_ROLES.levels);
 
   const { data: students } = await supabase
@@ -52,12 +54,23 @@ export default async function LevelsPage() {
   const allLevelIds = (levels ?? []).map((l) => l.id);
   const { data: examRows } = await supabase
     .from('exam_results')
-    .select('id, level_id, exam_date, score, grade, passed, retry_date')
+    .select('id, level_id, exam_date, score, grade, passed, retry_date, created_at')
     .in('level_id', allLevelIds.length ? allLevelIds : [-1])
     .order('id', { ascending: true });
 
+  const { data: readinessRows } = await supabase
+    .from('exam_readiness')
+    .select('id, level_id, action, acted_at')
+    .in('level_id', allLevelIds.length ? allLevelIds : [-1]);
+
   // آخر محاولة لكل مستوى هي المعتمدة (الترتيب تصاعدي، فالأخيرة تفوز)
   const examByLevel = new Map((examRows ?? []).map((e) => [e.level_id, e]));
+  const examsByLevel = new Map();
+  for (const e of examRows ?? []) {
+    if (!examsByLevel.has(e.level_id)) examsByLevel.set(e.level_id, []);
+    examsByLevel.get(e.level_id).push(e);
+  }
+  const readinessByLevel = groupByLevel(readinessRows ?? []);
 
   const quranIndex = buildQuranIndex();
 
@@ -69,6 +82,9 @@ export default async function LevelsPage() {
       ? computeProgress(quranIndex, current, recordsMap.get(s.id) ?? [])
       : null;
     const exam = current ? examByLevel.get(current.id) : null;
+    const readiness = current
+      ? readinessState(readinessByLevel.get(current.id) ?? [], examsByLevel.get(current.id) ?? [])
+      : { confirmed: false, confirmedAt: null };
 
     let status;
     if (!current) {
@@ -76,34 +92,40 @@ export default async function LevelsPage() {
     } else if (exam?.passed) {
       status = { key: 'passed', label: `✅ ناجح — ${exam.grade}`, color: 'text-brand-700 font-bold' };
     } else if (exam && !exam.passed) {
+      // التأكيد سقط بمجرد رصد المحاولة السابقة، فالإعادة تحتاج تأكيداً جديداً.
+      const base = exam.retry_date ? `إعادة بتاريخ ${exam.retry_date}` : 'بانتظار إعادة الاختبار';
       status = {
         key: 'failed',
-        label: exam.retry_date ? `⏳ إعادة بتاريخ ${exam.retry_date}` : '⏳ بانتظار إعادة الاختبار',
+        label: readiness.confirmed ? `⏳ ${base}` : `⏳ ${base} — بانتظار تأكيد المعلم`,
         color: 'text-red-600 font-bold',
       };
     } else if (progress && progress.percent >= 100) {
-      // متى صار جاهزاً؟ آخر تسجيل جديد هو ما أتمّ مستواه، لأن التسجيل يُقفل بعد الإتمام
-      const newDates = (recordsMap.get(s.id) ?? [])
-        .filter((r) => r.type === 'جديد' && r.date)
-        .map((r) => r.date)
-        .sort();
-      const readySince = newDates[newDates.length - 1] ?? null;
-      const waitedWorkDays = readySince ? countWorkDaysBetween(readySince, today) : 0;
-      const overdue = waitedWorkDays > EXAM_DELAY_WORK_DAYS;
+      // البوابة: لا رصد اختبار قبل أن يؤكد المعلم جاهزية الطالب فعلياً.
+      // وساعة المشرف تبدأ من التأكيد لا من الإتمام، فلا يُحسب عليه تأخر المعلم.
+      const waitedWorkDays = readiness.confirmedAt
+        ? countWorkDaysBetween(readiness.confirmedAt.slice(0, 10), today)
+        : 0;
+      const overdue = readiness.confirmed && waitedWorkDays > EXAM_DELAY_WORK_DAYS;
 
-      status = {
-        key: 'ready',
-        label: overdue
-          ? `⚠️ متأخر — جاهز للاختبار منذ ${waitedWorkDays} أيام عمل`
-          : '🏆 جاهز للاختبار',
-        color: overdue ? 'text-red-700 font-bold' : 'text-amber-700 font-bold',
-        overdue,
-      };
+      status = readiness.confirmed
+        ? {
+            key: 'ready',
+            label: overdue
+              ? `⚠️ متأخر — مؤكَّد منذ ${waitedWorkDays} أيام عمل`
+              : '🏆 جاهز للاختبار — أكّده المعلم',
+            color: overdue ? 'text-red-700 font-bold' : 'text-amber-700 font-bold',
+            overdue,
+          }
+        : {
+            key: 'awaiting-confirm',
+            label: '⏳ أنهى مستواه — بانتظار تأكيد المعلم',
+            color: 'text-slate-500',
+          };
     } else {
       status = { key: 'progress', label: 'قيد التقدم', color: 'text-slate-500' };
     }
 
-    return { student: s, current, past, progress, exam, status };
+    return { student: s, current, past, progress, exam, status, readiness };
   });
 
   const overdueRows = rows.filter((r) => r.status.overdue);
@@ -115,6 +137,12 @@ export default async function LevelsPage() {
         <p className="text-slate-500 mb-6">
           تعيين المستويات، ورصد نتائج الاختبارات، وتسجيل مستويات الطلاب المنتقلين
         </p>
+
+        {params?.error && (
+          <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+            {params.error}
+          </p>
+        )}
 
         {overdueRows.length > 0 && (
           <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4 mb-6">
@@ -198,14 +226,16 @@ export default async function LevelsPage() {
               <p className={`text-sm mt-2 ${status.color}`}>{status.label}</p>
 
               <div className="flex flex-wrap gap-2 mt-3">
-                {(status.key === 'ready' || status.key === 'failed') && current && (
-                  <a
-                    href={`/levels/exam?levelId=${current.id}`}
-                    className="text-xs font-bold bg-blue-50 text-blue-700 rounded-lg px-3 py-2 transition"
-                  >
-                    تسجيل نتيجة اختبار
-                  </a>
-                )}
+                {(status.key === 'ready' || status.key === 'failed') &&
+                  current &&
+                  readiness.confirmed && (
+                    <a
+                      href={`/levels/exam?levelId=${current.id}`}
+                      className="text-xs font-bold bg-blue-50 text-blue-700 rounded-lg px-3 py-2 transition"
+                    >
+                      تسجيل نتيجة اختبار
+                    </a>
+                  )}
                 {status.key === 'passed' && exam && (
                   <a
                     href={`/levels/certificate?examId=${exam.id}`}
@@ -289,14 +319,16 @@ export default async function LevelsPage() {
                   <td className={`py-3 px-2 text-sm ${status.color}`}>{status.label}</td>
                   <td className="py-3 px-2">
                     <div className="flex flex-wrap gap-2">
-                      {(status.key === 'ready' || status.key === 'failed') && current && (
-                        <a
-                          href={`/levels/exam?levelId=${current.id}`}
-                          className="text-xs font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg px-3 py-1.5 transition"
-                        >
-                          تسجيل نتيجة اختبار
-                        </a>
-                      )}
+                      {(status.key === 'ready' || status.key === 'failed') &&
+                        current &&
+                        readiness.confirmed && (
+                          <a
+                            href={`/levels/exam?levelId=${current.id}`}
+                            className="text-xs font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg px-3 py-1.5 transition"
+                          >
+                            تسجيل نتيجة اختبار
+                          </a>
+                        )}
                       {status.key === 'passed' && exam && (
                         <a
                           href={`/levels/certificate?examId=${exam.id}`}

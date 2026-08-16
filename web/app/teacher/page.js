@@ -8,8 +8,13 @@ import { levelName } from '@/lib/level-name';
 import {
   previousWorkDays,
   countWorkDaysBetween,
-  EXAM_DELAY_WORK_DAYS,
+  CONFIRM_DELAY_WORK_DAYS,
 } from '@/lib/work-days';
+import {
+  readinessState,
+  groupByLevel,
+  completionDate,
+} from '@/lib/exam-readiness';
 import { requireRole, PAGE_ROLES } from '@/lib/auth';
 
 function surahName(num) {
@@ -34,6 +39,48 @@ async function markAttendance(formData) {
   if (error) {
     redirect('/teacher?error=1');
   }
+}
+
+// تأكيد الجاهزية أو سحبه. الإجراء نقطة وصول مستقلة عن الصفحة، فيعيد التحقق
+// من الحالة بنفسه بدل الوثوق بما أرسلته الواجهة.
+async function setReadiness(formData) {
+  'use server';
+  const levelId = formData.get('levelId');
+  const action = formData.get('action');
+
+  if (action !== 'confirm' && action !== 'withdraw') {
+    redirect('/teacher?error=1');
+  }
+
+  const { supabase, user } = await requireRole(PAGE_ROLES.teacher);
+
+  const [{ data: rows }, { data: exams }] = await Promise.all([
+    supabase.from('exam_readiness').select('id, action, acted_at').eq('level_id', levelId),
+    supabase.from('exam_results').select('id, created_at').eq('level_id', levelId),
+  ]);
+
+  // اختبار مرصود يعني أن المحاولة انتهت — لا تأكيد لها ولا سحب.
+  if ((exams ?? []).length > 0) {
+    const { staleAfterExam } = readinessState(rows ?? [], exams ?? []);
+    if (!staleAfterExam && action === 'withdraw') redirect('/teacher?error=1');
+  }
+
+  const { confirmed } = readinessState(rows ?? [], exams ?? []);
+
+  // فعلٌ يكرّر الحالة القائمة لا معنى له، وصفٌّ زائد يشوّش السجل.
+  if ((action === 'confirm' && confirmed) || (action === 'withdraw' && !confirmed)) {
+    redirect('/teacher');
+  }
+
+  const { error } = await supabase
+    .from('exam_readiness')
+    .insert({ level_id: levelId, action, acted_by: user.id });
+
+  revalidatePath('/teacher');
+  revalidatePath('/levels');
+
+  if (error) redirect('/teacher?error=1');
+  redirect('/teacher');
 }
 
 export default async function TeacherPage({ searchParams }) {
@@ -77,12 +124,23 @@ export default async function TeacherPage({ searchParams }) {
       .in('student_id', idsFilter),
     supabase
       .from('exam_results')
-      .select('level_id, passed, grade, retry_date')
+      .select('level_id, passed, grade, retry_date, created_at')
       .in('level_id', levelList.length ? levelList.map((l) => l.id) : [-1])
       .order('id', { ascending: true }),
   ]);
 
+  const { data: readinessRows } = await supabase
+    .from('exam_readiness')
+    .select('id, level_id, action, acted_at')
+    .in('level_id', levelList.length ? levelList.map((l) => l.id) : [-1]);
+
   const examByLevel = new Map((examRows ?? []).map((e) => [e.level_id, e]));
+  const examsByLevel = new Map();
+  for (const e of examRows ?? []) {
+    if (!examsByLevel.has(e.level_id)) examsByLevel.set(e.level_id, []);
+    examsByLevel.get(e.level_id).push(e);
+  }
+  const readinessByLevel = groupByLevel(readinessRows ?? []);
 
   const todayAttendance = new Map();
   const attendanceByStudentDate = new Map();
@@ -134,19 +192,19 @@ export default async function TeacherPage({ searchParams }) {
 
     const exam = level ? examByLevel.get(level.id) : null;
 
-    // تأخّر الاختبار: الطالب أتمّ مستواه ولم يُرصد له اختبار. يُحسب من تاريخ
-    // آخر تسجيل جديد لأن التسجيل يُقفل بعد الإتمام، فآخر سرد هو ما أتمّ المستوى.
-    // نفس حساب /levels و/overview — المعلم يحتاج رؤيته كي يذكّر المشرف.
-    let examOverdue = 0;
-    if (newState?.isLevelComplete && !exam) {
-      const dates = records
-        .filter((r) => r.type === 'جديد' && r.date)
-        .map((r) => r.date)
-        .sort();
-      const readySince = dates[dates.length - 1];
+    // بوابة التأكيد: الحساب يقول إن التغطية اكتملت، والمعلم وحده يعرف إن كان
+    // الطالب يتقنها. فلا يرصد المشرف اختباراً قبل تأكيده.
+    const readiness = level
+      ? readinessState(readinessByLevel.get(level.id) ?? [], examsByLevel.get(level.id) ?? [])
+      : { confirmed: false };
+
+    // ساعة المعلم: من إتمام التغطية إلى التأكيد. تتوقف بمجرد أن يؤكد.
+    let confirmOverdue = 0;
+    if (newState?.isLevelComplete && !exam?.passed && !readiness.confirmed) {
+      const readySince = completionDate(records.filter((r) => r.type === 'جديد'));
       if (readySince) {
         const waited = countWorkDaysBetween(readySince, today);
-        if (waited > EXAM_DELAY_WORK_DAYS) examOverdue = waited;
+        if (waited > CONFIRM_DELAY_WORK_DAYS) confirmOverdue = waited;
       }
     }
 
@@ -157,7 +215,8 @@ export default async function TeacherPage({ searchParams }) {
       level,
       newState,
       exam,
-      examOverdue,
+      readiness,
+      confirmOverdue,
       progress: level ? computeProgress(quranIndex, level, records) : null,
       attendance: todayAttendance.get(s.id) ?? null,
       streak: absenceStreak(s.id),
@@ -198,13 +257,14 @@ export default async function TeacherPage({ searchParams }) {
               </h2>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {cards.map(({ student: s, level, newState, exam, examOverdue, progress, attendance, streak }) => {
+                {cards.map(
+                  ({ student: s, level, newState, exam, readiness, confirmOverdue, progress, attendance, streak }) => {
                   const isAbsent = attendance?.attended === false;
                   const isPresent = attendance?.attended === true && !attendance?.early_arrival;
                   const isEarly = attendance?.attended === true && attendance?.early_arrival === true;
 
                   const border =
-                    streak >= 2 || examOverdue
+                    streak >= 2 || confirmOverdue
                       ? 'border-red-400 border-2'
                       : streak === 1
                         ? 'border-amber-400 border-2'
@@ -254,20 +314,26 @@ export default async function TeacherPage({ searchParams }) {
                           </span>
                         ) : exam ? (
                           <span className="inline-block bg-red-100 text-red-800 font-bold px-2 py-1 rounded-full">
-                            ⏳ بانتظار إعادة الاختبار
+                            {readiness?.confirmed
+                              ? '⏳ بانتظار إعادة الاختبار'
+                              : '⏳ رسب — أكّد جاهزيته للإعادة'}
                           </span>
                         ) : newState?.pendingDelivery ? (
                           <span className="inline-block bg-blue-100 text-blue-800 font-bold px-2 py-1 rounded-full">
                             🔒 بانتظار تسليم {surahName(newState.pendingDelivery)}
                           </span>
                         ) : newState?.isLevelComplete ? (
-                          examOverdue ? (
+                          readiness?.confirmed ? (
+                            <span className="inline-block bg-brand-100 text-brand-800 font-bold px-2 py-1 rounded-full">
+                              ✅ أُكِّدت جاهزيته — بانتظار المشرف
+                            </span>
+                          ) : confirmOverdue ? (
                             <span className="inline-block bg-red-100 text-red-800 font-bold px-2 py-1 rounded-full">
-                              ⚠️ جاهز للاختبار منذ {examOverdue} أيام عمل — ذكّر المشرف
+                              ⚠️ أنهى مستواه منذ {confirmOverdue} أيام عمل — أكّد جاهزيته
                             </span>
                           ) : (
                             <span className="inline-block bg-amber-100 text-amber-800 font-bold px-2 py-1 rounded-full">
-                              🏆 جاهز للاختبار
+                              🏆 أنهى مستواه — بانتظار تأكيدك
                             </span>
                           )
                         ) : newState?.currentSurah ? (
@@ -336,6 +402,29 @@ export default async function TeacherPage({ searchParams }) {
                         >
                           {newState?.pendingDelivery ? 'تسليم السورة' : 'تسجيل الجديد'}
                         </a>
+                      )}
+
+                      {/* بوابة الجاهزية: تظهر فقط بعد إتمام التغطية وقبل رصد
+                          الاختبار. التأكيد يفتح للمشرف زرّ الرصد، والسحب يقفله
+                          ثانيةً لو لاحظ المعلم ضعفاً قبل أن يُرصد. */}
+                      {level && newState?.isLevelComplete && !exam?.passed && (
+                        <form action={setReadiness}>
+                          <input type="hidden" name="levelId" value={level.id} />
+                          <input
+                            type="hidden"
+                            name="action"
+                            value={readiness?.confirmed ? 'withdraw' : 'confirm'}
+                          />
+                          <button
+                            className={`w-full text-center px-3 py-2 rounded-lg font-bold text-sm transition ${
+                              readiness?.confirmed
+                                ? 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                : 'bg-brand-600 text-white hover:bg-brand-700'
+                            }`}
+                          >
+                            {readiness?.confirmed ? '↩︎ تراجع عن التأكيد' : '✅ أؤكد جاهزيته للاختبار'}
+                          </button>
+                        </form>
                       )}
                     </div>
                   );

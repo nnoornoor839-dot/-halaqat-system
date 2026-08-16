@@ -7,9 +7,11 @@ import { levelName } from '@/lib/level-name';
 import {
   countWorkDaysBetween,
   previousWorkDays,
+  CONFIRM_DELAY_WORK_DAYS,
   EXAM_DELAY_WORK_DAYS,
   STALE_REVIEW_WORK_DAYS,
 } from '@/lib/work-days';
+import { readinessState, groupByLevel, completionDate } from '@/lib/exam-readiness';
 import { requireRole, PAGE_ROLES } from '@/lib/auth';
 
 function surahName(num) {
@@ -57,10 +59,22 @@ export default async function OverviewPage() {
       .in('student_id', idsFilter),
     supabase
       .from('exam_results')
-      .select('level_id, passed, grade')
+      .select('level_id, passed, grade, created_at')
       .in('level_id', levelList.length ? levelList.map((l) => l.id) : [-1])
       .order('id', { ascending: true }),
   ]);
+
+  const { data: readinessRows } = await supabase
+    .from('exam_readiness')
+    .select('id, level_id, action, acted_at')
+    .in('level_id', levelList.length ? levelList.map((l) => l.id) : [-1]);
+
+  const readinessByLevel = groupByLevel(readinessRows ?? []);
+  const examsByLevel = new Map();
+  for (const e of examRows ?? []) {
+    if (!examsByLevel.has(e.level_id)) examsByLevel.set(e.level_id, []);
+    examsByLevel.get(e.level_id).push(e);
+  }
 
   const examByLevel = new Map((examRows ?? []).map((e) => [e.level_id, e]));
   const passedLevelIds = new Set((examRows ?? []).filter((e) => e.passed).map((e) => e.level_id));
@@ -119,13 +133,23 @@ export default async function OverviewPage() {
       else break;
     }
 
-    // تأخّر الاختبار: آخر تسجيل جديد هو ما أتمّ المستوى
+    // ساعتان منفصلتان: المعلم يؤكد الجاهزية، ثم يرصد المشرف الاختبار. فصلهما
+    // يمنع أن يُحسب تأخّر أحدهما على الآخر.
+    const readiness = level
+      ? readinessState(readinessByLevel.get(level.id) ?? [], examsByLevel.get(level.id) ?? [])
+      : { confirmed: false, confirmedAt: null };
+
+    let confirmOverdue = 0;
     let examOverdue = 0;
-    if (newState?.isLevelComplete && !exam) {
-      const dates = newRecords.filter((r) => r.date).map((r) => r.date).sort();
-      const readySince = dates[dates.length - 1];
-      if (readySince) {
-        const waited = countWorkDaysBetween(readySince, today);
+    if (newState?.isLevelComplete && !exam?.passed) {
+      if (!readiness.confirmed) {
+        const readySince = completionDate(newRecords);
+        if (readySince) {
+          const waited = countWorkDaysBetween(readySince, today);
+          if (waited > CONFIRM_DELAY_WORK_DAYS) confirmOverdue = waited;
+        }
+      } else {
+        const waited = countWorkDaysBetween(readiness.confirmedAt.slice(0, 10), today);
         if (waited > EXAM_DELAY_WORK_DAYS) examOverdue = waited;
       }
     }
@@ -160,6 +184,12 @@ export default async function OverviewPage() {
     const flags = [];
     if (streak >= 2) flags.push({ key: 'absence', label: `غاب ${streak} أيام`, tone: 'red' });
     else if (streak === 1) flags.push({ key: 'absence', label: 'غاب آخر يوم', tone: 'amber' });
+    if (confirmOverdue)
+      flags.push({
+        key: 'confirm',
+        label: `بانتظار تأكيد المعلم ${confirmOverdue} أيام`,
+        tone: 'amber',
+      });
     if (examOverdue) flags.push({ key: 'exam', label: `اختبار متأخر ${examOverdue} أيام`, tone: 'red' });
     if (reviewStale) flags.push({ key: 'review', label: 'المراجعة راكدة', tone: 'amber' });
     if (newState?.pendingDelivery)
